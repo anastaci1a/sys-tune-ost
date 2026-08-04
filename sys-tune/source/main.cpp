@@ -92,6 +92,8 @@ int main(int, char *[]) {
     R_ABORT_UNLESS(threadClose(&pmdmtThread));
     R_ABORT_UNLESS(threadClose(&tuneThread));
 
+    tune::impl::Finalize();
+
     /* Close gpio session. */
     gpioPadClose(&headphone_detect_session);
 

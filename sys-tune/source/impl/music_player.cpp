@@ -1,5 +1,6 @@
 #include "music_player.hpp"
 
+#include "applet_bgm.hpp"
 #include "../tune_result.hpp"
 #include "../tune_service.hpp"
 #include "sdmc/sdmc.hpp"
@@ -9,6 +10,7 @@
 #include "source.hpp"
 #include "resamplers/SDL_audioEX.h"
 
+#include <atomic>
 #include <cstring>
 #include <nxExt.h>
 
@@ -224,7 +226,7 @@ namespace tune::impl {
 
         RepeatMode g_repeat   = RepeatMode::All;
         ShuffleMode g_shuffle = ShuffleMode::Off;
-        PlayerStatus g_status = PlayerStatus::FetchNext;
+        std::atomic<PlayerStatus> g_status = PlayerStatus::FetchNext;
         Source *g_source = nullptr;
 
         float g_title_volume = 1.f;
@@ -241,8 +243,126 @@ namespace tune::impl {
         alignas(0x1000) s16 AudioMemoryPool[AUDIO_BUFFER_COUNT][(AUDIO_BUFFER_SIZE + 0xFFF) & ~0xFFF];
         static_assert((sizeof(AudioMemoryPool[0]) % 0x2000) == 0, "Audio Memory pool needs to be page aligned!");
 
-        bool g_should_pause      = false;
-        bool g_should_run        = true;
+        std::atomic_bool g_should_pause = false;
+        std::atomic_bool g_should_run = true;
+
+        std::atomic_bool g_applet_bgm_mode = false;
+        std::atomic_bool g_applet_bgm_reload = true;
+        std::atomic_bool g_applet_bgm_failed = false;
+        char g_applet_bgm_path[PATH_SIZE_MAX]{};
+        char g_playing_path[PATH_SIZE_MAX]{};
+
+        bool g_pdmqry_available = false;
+
+        Result IsApplicationOutOfFocus(u64 title_id, bool* out_of_focus) {
+            static s32 last_total_entries = -1;
+            static s32 last_end_entry_index = -1;
+            static u64 last_title_id = 0;
+            static bool last_out_of_focus = false;
+            static Result last_result = 1;
+
+            s32 total_entries = 0;
+            s32 start_entry_index = 0;
+            s32 end_entry_index = 0;
+            Result rc = pdmqryGetAvailablePlayEventRange(
+                &total_entries, &start_entry_index, &end_entry_index);
+            if (R_FAILED(rc)) {
+                return rc;
+            }
+
+            if (total_entries == last_total_entries &&
+                end_entry_index == last_end_entry_index &&
+                title_id == last_title_id) {
+                if (R_SUCCEEDED(last_result)) {
+                    *out_of_focus = last_out_of_focus;
+                }
+                return last_result;
+            }
+
+            const bool had_cached_state = title_id == last_title_id && R_SUCCEEDED(last_result);
+            const bool cached_out_of_focus = last_out_of_focus;
+
+            last_total_entries = total_entries;
+            last_end_entry_index = end_entry_index;
+            last_title_id = title_id;
+
+            constexpr s32 EventCount = 16;
+            PdmPlayEvent events[EventCount]{};
+            s32 count = 0;
+            const s32 start = std::max(start_entry_index, end_entry_index - (EventCount - 1));
+
+            rc = pdmqryQueryPlayEvent(start, events, EventCount, &count);
+            if (R_FAILED(rc) || count == 0) {
+                last_result = R_FAILED(rc) ? rc : 1;
+                return last_result;
+            }
+
+            for (s32 i = count - 1; i >= 0; i--) {
+                const auto& event = events[i];
+                if (event.play_event_type != PdmPlayEventType_Applet ||
+                    event.event_data.applet.applet_id != AppletId_application) {
+                    continue;
+                }
+
+                union {
+                    u32 parts[2];
+                    u64 full;
+                } event_title_id{};
+                event_title_id.parts[0] = event.event_data.applet.program_id[1];
+                event_title_id.parts[1] = event.event_data.applet.program_id[0];
+
+                if (event_title_id.full != title_id &&
+                    event_title_id.full != (title_id & ~0xFFFULL)) {
+                    continue;
+                }
+
+                const auto event_type = event.event_data.applet.event_type;
+                last_out_of_focus = event_type == PdmAppletEventType_OutOfFocus ||
+                                    event_type == PdmAppletEventType_OutOfFocus4;
+                *out_of_focus = last_out_of_focus;
+                last_result = 0;
+                return 0;
+            }
+
+            if (had_cached_state) {
+                last_out_of_focus = cached_out_of_focus;
+                *out_of_focus = cached_out_of_focus;
+                last_result = 0;
+            } else {
+                last_result = 1;
+            }
+            return last_result;
+        }
+
+        void SetAppletBgmScene(bool enabled, const char* path) {
+            std::scoped_lock lk(g_mutex);
+
+            g_applet_bgm_mode = enabled;
+            std::snprintf(g_applet_bgm_path, sizeof(g_applet_bgm_path), "%s", path ? path : "");
+            g_applet_bgm_failed = false;
+            g_status = PlayerStatus::FetchNext;
+            g_should_pause = enabled && g_applet_bgm_path[0] == '\0';
+        }
+
+        void ApplyTitleSettings(u64 tid, bool apply_playback_setting) {
+            g_title_volume = 1.f;
+            g_use_title_volume = false;
+
+            if (config::has_title_volume(tid)) {
+                g_use_title_volume = true;
+                SetTitleVolume(std::clamp(config::get_title_volume(tid), 0.f, VOLUME_MAX));
+            }
+
+            if (!apply_playback_setting) {
+                return;
+            }
+
+            if (config::has_title_enabled(tid)) {
+                g_should_pause = !config::get_title_enabled(tid);
+            } else {
+                g_should_pause = !config::get_title_enabled_default();
+            }
+        }
 
         Result PlayTrack(const char* path) {
             /* Open file and allocate */
@@ -301,7 +421,7 @@ namespace tune::impl {
                 }
 
                 if (error || source->Done()) {
-                    if (g_repeat != RepeatMode::One) {
+                    if (!g_applet_bgm_mode && g_repeat != RepeatMode::One) {
                         Next();
                     }
                     break;
@@ -331,9 +451,25 @@ namespace tune::impl {
 
         SetShuffleMode(static_cast<ShuffleMode>(config::get_shuffle()));
         SetDefaultTitleVolume(config::get_default_title_volume());
+        g_applet_bgm_mode = config::get_applet_bgm_enabled();
 
         // reserves memory so that we don't allocate later on.
         g_playlist.Init();
+
+        // Best-effort HOME focus detection. pdm:qry has very few sessions;
+        // replace libnx's initial session with a clone so the original slot is
+        // released while retaining a working query handle.
+        if (R_SUCCEEDED(pdmqryInitialize())) {
+            Service* service = pdmqryGetServiceSession();
+            Service clone{};
+            if (R_SUCCEEDED(serviceClone(service, &clone))) {
+                serviceClose(service);
+                std::memcpy(service, &clone, sizeof(Service));
+                g_pdmqry_available = true;
+            } else {
+                pdmqryExit();
+            }
+        }
 
         return 0;
 
@@ -341,6 +477,13 @@ namespace tune::impl {
 
     void Exit() {
         g_should_run = false;
+    }
+
+    void Finalize() {
+        if (g_pdmqry_available) {
+            pdmqryExit();
+            g_pdmqry_available = false;
+        }
     }
 
     void TuneThreadFunc(void *) {
@@ -392,34 +535,65 @@ namespace tune::impl {
         /* Run as long as we aren't stopped and no error has been encountered. */
         while (g_should_run) {
             g_current.Reset();
+
+            char play_path[PATH_SIZE_MAX]{};
+            bool applet_bgm_track = false;
             {
                 std::scoped_lock lk(g_mutex);
 
-                const auto queue_size = g_playlist.Size();
-                if (queue_size == 0) {
-                    g_current.Reset();
-                } else if (g_queue_position >= queue_size) {
-                    g_queue_position = queue_size - 1;
-                    continue;
+                if (g_applet_bgm_mode) {
+                    applet_bgm_track = true;
+                    if (!g_applet_bgm_failed && g_applet_bgm_path[0] != '\0') {
+                        std::snprintf(play_path, sizeof(play_path), "%s", g_applet_bgm_path);
+                    }
                 } else {
-                    g_current = g_playlist.Get(g_queue_position, g_shuffle);
+                    const auto queue_size = g_playlist.Size();
+                    if (queue_size == 0) {
+                        g_current.Reset();
+                    } else if (g_queue_position >= queue_size) {
+                        g_queue_position = queue_size - 1;
+                        continue;
+                    } else {
+                        g_current = g_playlist.Get(g_queue_position, g_shuffle);
+                        const auto path = g_playlist.GetPath(g_current);
+                        if (path != nullptr) {
+                            std::snprintf(play_path, sizeof(play_path), "%s", path);
+                        }
+                    }
+                }
+
+                if (play_path[0] != '\0') {
+                    std::snprintf(g_playing_path, sizeof(g_playing_path), "%s", play_path);
+                    g_status = PlayerStatus::Playing;
                 }
             }
 
             /* Sleep if queue is empty. */
-            if (!g_current.IsValid()) {
+            if (play_path[0] == '\0') {
                 svcSleepThread(100'000'000ul);
                 continue;
             }
 
-            g_status = PlayerStatus::Playing;
             /* Only play if playing and we have a track queued. */
-            Result rc = PlayTrack(g_playlist.GetPath(g_current));
+            Result rc = PlayTrack(play_path);
+
+            {
+                std::scoped_lock lk(g_mutex);
+                g_playing_path[0] = '\0';
+            }
 
             /* Log error. */
             if (R_FAILED(rc)) {
-                /* Remove track if something went wrong. */
-                Remove(g_queue_position);
+                if (applet_bgm_track) {
+                    std::scoped_lock lk(g_mutex);
+                    if (g_applet_bgm_mode && std::strcmp(g_applet_bgm_path, play_path) == 0) {
+                        g_applet_bgm_failed = true;
+                        g_should_pause = true;
+                    }
+                } else {
+                    /* Remove track if something went wrong. */
+                    Remove(g_queue_position);
+                }
             }
         }
 
@@ -454,21 +628,56 @@ namespace tune::impl {
     }
 
     void PmdmntThreadFunc(void *) {
+        bool applet_bgm_enabled = config::get_applet_bgm_enabled();
+        u64 current_applet_tid = UINT64_MAX;
+
         while (g_should_run) {
             u64 pid{}, new_tid{};
-            if (pm::PollCurrentPidTid(&pid, &new_tid)) {
-                g_title_volume = 1.f;
 
-                if (config::has_title_volume(new_tid)) {
-                    g_use_title_volume = true;
-                    SetTitleVolume(std::clamp(config::get_title_volume(new_tid), 0.f, VOLUME_MAX));
+            const bool reload_applet_bgm = g_applet_bgm_reload.exchange(false);
+            if (reload_applet_bgm) {
+                const bool was_enabled = applet_bgm_enabled;
+                applet_bgm_enabled = config::get_applet_bgm_enabled();
+                current_applet_tid = UINT64_MAX;
+
+                if (was_enabled && !applet_bgm_enabled) {
+                    SetAppletBgmScene(false, nullptr);
+                }
+            }
+
+            if (pm::PollCurrentPidTid(&pid, &new_tid)) {
+                ApplyTitleSettings(new_tid, !applet_bgm_enabled);
+            } else if (reload_applet_bgm && !applet_bgm_enabled) {
+                // PollCurrentPidTid caches the title, so disabling Applet BGM
+                // must explicitly restore the normal per-title play setting.
+                pm::getCurrentPidTid(&pid, &new_tid);
+                ApplyTitleSettings(new_tid, true);
+            }
+
+            if (applet_bgm_enabled) {
+                bool application_out_of_focus = false;
+                if (g_pdmqry_available && new_tid != 0 &&
+                    new_tid != applet_bgm::QlaunchTitleId) {
+                    bool out_of_focus = false;
+                    if (R_SUCCEEDED(IsApplicationOutOfFocus(new_tid, &out_of_focus))) {
+                        application_out_of_focus = out_of_focus;
+                    }
                 }
 
-                // TODO(TJ): fade song in rather than abruptly playing to avoid jump scares
-                if (config::has_title_enabled(new_tid)) {
-                    g_should_pause = !config::get_title_enabled(new_tid);
-                } else {
-                    g_should_pause = !config::get_title_enabled_default();
+                u64 applet_pid{}, applet_tid{};
+                pm::getAppletBgmTarget(
+                    &applet_pid, &applet_tid, application_out_of_focus);
+
+                if (reload_applet_bgm || applet_tid != current_applet_tid) {
+                    char path[PATH_SIZE_MAX]{};
+                    if (applet_tid != 0 && config::get_applet_bgm_path(applet_tid, path, sizeof(path))) {
+                        if (!sdmc::FileExists(path) || GetSourceType(path) == SourceType::NONE) {
+                            path[0] = '\0';
+                        }
+                    }
+
+                    SetAppletBgmScene(true, path);
+                    current_applet_tid = applet_tid;
                 }
             }
 
@@ -482,7 +691,7 @@ namespace tune::impl {
                 // audWrapperSetProcessRecordVolume(pid, 0, v);
             }
 
-            svcSleepThread(10'000'000);
+            svcSleepThread(applet_bgm_enabled ? 50'000'000 : 10'000'000);
         }
     }
 
@@ -608,10 +817,8 @@ namespace tune::impl {
         {
             std::scoped_lock lk(g_mutex);
 
-            const auto path = g_playlist.GetPath(g_current);
-            R_UNLESS(path, tune::NotPlaying);
-
-            std::snprintf(buffer, buffer_size, "%s", path);
+            R_UNLESS(g_playing_path[0] != '\0', tune::NotPlaying);
+            std::snprintf(buffer, buffer_size, "%s", g_playing_path);
         }
 
         auto [current, total] = g_source->Tell();
@@ -712,6 +919,10 @@ namespace tune::impl {
             g_status = PlayerStatus::FetchNext;
 
         return 0;
+    }
+
+    void ReloadAppletBgm() {
+        g_applet_bgm_reload = true;
     }
 
 }

@@ -105,4 +105,22 @@ void set_load_path(const char* path) {
     ini_puts("config", "load_path", path, CONFIG_PATH);
 }
 
+auto get_applet_bgm_enabled() -> bool {
+    return ini_getbool("applet_bgm", "enabled", false, CONFIG_PATH);
+}
+
+void set_applet_bgm_enabled(bool value) {
+    create_config_dir();
+    ini_putl("applet_bgm", "enabled", value, CONFIG_PATH);
+}
+
+auto get_applet_bgm_path(u64 tid, char* out, int max_len) -> int {
+    return ini_gets("applet_bgm", get_tid_str(tid), "", out, max_len, CONFIG_PATH);
+}
+
+void set_applet_bgm_path(u64 tid, const char* path) {
+    create_config_dir();
+    ini_puts("applet_bgm", get_tid_str(tid), path, CONFIG_PATH);
+}
+
 }

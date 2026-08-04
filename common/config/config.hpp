@@ -38,4 +38,11 @@ void set_default_title_volume(float value);
 auto get_load_path(char* out, int max_len) -> int;
 void set_load_path(const char* path);
 
+// Applet BGM mode. Each mapped applet plays one looping track; unmapped
+// applets and regular applications are silent.
+auto get_applet_bgm_enabled() -> bool;
+void set_applet_bgm_enabled(bool value);
+auto get_applet_bgm_path(u64 tid, char* out, int max_len) -> int;
+void set_applet_bgm_path(u64 tid, const char* path);
+
 }

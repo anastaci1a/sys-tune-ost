@@ -133,6 +133,10 @@ namespace tune {
                 case TuneIpcCmd_Remove:
                     SET_SINGLE(u32, impl::Remove);
 
+                case TuneIpcCmd_ReloadAppletBgm:
+                    impl::ReloadAppletBgm();
+                    return 0;
+
                 case TuneIpcCmd_QuitServer:
                     running = false;
                     return 0;

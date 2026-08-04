@@ -30,6 +30,8 @@ enum TuneIpcCmd {
     TuneIpcCmd_Enqueue = 40,
     TuneIpcCmd_Remove = 41,
 
+    TuneIpcCmd_ReloadAppletBgm = 45,
+
     TuneIpcCmd_QuitServer = 50,
 
     TuneIpcCmd_GetApiVersion = 5000,

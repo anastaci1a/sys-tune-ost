@@ -8,6 +8,7 @@ namespace tune::impl {
 
     Result Initialize();
     void Exit();
+    void Finalize();
 
     void TuneThreadFunc(void *);
     void GpioThreadFunc(void *);
@@ -46,5 +47,7 @@ namespace tune::impl {
 
     Result Enqueue(const char* buffer, size_t buffer_length, EnqueueType type);
     Result Remove(u32 index);
+
+    void ReloadAppletBgm();
 
 }

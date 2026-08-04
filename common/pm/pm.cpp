@@ -1,4 +1,5 @@
 #include "pm.hpp"
+#include "applet_bgm.hpp"
 
 namespace {
 
@@ -35,6 +36,36 @@ void getCurrentPidTid(u64* pid_out, u64* tid_out) {
     } else {
         *tid_out = CURRENT_TITLE_ID;
     }
+}
+
+void getAppletBgmTarget(u64* pid_out, u64* tid_out, bool application_out_of_focus) {
+    *pid_out = 0;
+    *tid_out = 0;
+
+    // A library applet can be in front of a suspended application. Prefer the
+    // applet process whenever one of the known targets is running.
+    for (const auto title_id : applet_bgm::DetectionTitleIds) {
+        u64 pid = 0;
+        if (R_SUCCEEDED(pmdmntGetProcessId(&pid, title_id)) && pid != 0) {
+            *pid_out = pid;
+            *tid_out = title_id;
+            return;
+        }
+    }
+
+    // The application slot remains occupied while a game is suspended behind
+    // HOME. pdm:qry supplies the missing focus state so qlaunch music can
+    // resume without waiting for the game to close.
+    u64 application_pid = 0;
+    if (R_SUCCEEDED(pmdmntGetApplicationProcessId(&application_pid)) && application_pid != 0) {
+        *pid_out = application_pid;
+        if (application_out_of_focus) {
+            *tid_out = applet_bgm::QlaunchTitleId;
+        }
+        return;
+    }
+
+    *tid_out = applet_bgm::QlaunchTitleId;
 }
 
 auto PollCurrentPidTid(u64* pid_out, u64* tid_out) -> bool {

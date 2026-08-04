@@ -142,6 +142,11 @@ Result tuneEnqueue(const char *path, TuneEnqueueType type);
 
 Result tuneRemove(u32 index);
 
+/**
+ * @brief Reload Applet BGM settings after the overlay updates config.ini.
+ */
+Result tuneReloadAppletBgm();
+
 Result tuneQuit();
 
 Result tuneGetApiVersion(u32 *version);

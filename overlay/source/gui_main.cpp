@@ -3,6 +3,7 @@
 #include "elm_overlayframe.hpp"
 #include "elm_volume.hpp"
 #include "gui_browser.hpp"
+#include "gui_applet_bgm.hpp"
 #include "gui_playlist.hpp"
 #include "pm/pm.hpp"
 #include "config/config.hpp"
@@ -46,6 +47,17 @@ tsl::elm::Element *MainGui::createUI() {
         return false;
     });
     list->addItem(browser_button);
+
+    /* Applet BGM. */
+    auto applet_bgm_button = new tsl::elm::ListItem("Applet BGM");
+    applet_bgm_button->setClickListener([](u64 keys) {
+        if (keys & HidNpadButton_A) {
+            tsl::changeTo<AppletBgmGui>();
+            return true;
+        }
+        return false;
+    });
+    list->addItem(applet_bgm_button);
 
     /* Volume indicator */
     list->addItem(new tsl::elm::CategoryHeader("Volume Control"));

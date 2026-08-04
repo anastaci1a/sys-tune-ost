@@ -138,6 +138,10 @@ Result tuneRemove(u32 index) {
     return serviceDispatchIn(&g_tune, TuneIpcCmd_Remove, index);
 }
 
+Result tuneReloadAppletBgm() {
+    return serviceDispatch(&g_tune, TuneIpcCmd_ReloadAppletBgm);
+}
+
 Result tuneQuit() {
     return serviceDispatch(&g_tune, TuneIpcCmd_QuitServer);
 }
