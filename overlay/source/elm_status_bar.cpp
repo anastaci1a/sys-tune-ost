@@ -279,7 +279,11 @@ void StatusBar::update() {
                      float(this->m_stats.total_frames), 0.0f, 1.0f);
 
     std::snprintf(current_buffer, sizeof(current_buffer), "%d:%02d", current / 60, current % 60);
-    std::snprintf(total_buffer, sizeof(total_buffer), "%d:%02d", total / 60, total % 60);
+    if (this->m_stats.total_frames == 0 && this->m_stats.sample_rate != 0) {
+        std::snprintf(total_buffer, sizeof(total_buffer), "--:--");
+    } else {
+        std::snprintf(total_buffer, sizeof(total_buffer), "%d:%02d", total / 60, total % 60);
+    }
 }
 
 void StatusBar::CycleRepeat() {

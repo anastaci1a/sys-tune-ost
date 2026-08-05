@@ -3,6 +3,7 @@
 #include "sdmc/sdmc.hpp"
 #include "minIni/minIni.h"
 #include <algorithm>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 
@@ -32,6 +33,67 @@ void get_ost_section(u64 tid, char* out, size_t out_size) {
 
 void get_ost_item_key(u32 index, char* out, size_t out_size) {
     std::snprintf(out, out_size, "item_%03u", index);
+}
+
+struct OstPlaylistBrowseContext {
+    char section[32]{};
+    char* out{};
+    size_t item_stride{};
+    u32 max_items{};
+    OstPlaylistConfig config{};
+};
+
+int browse_ost_playlist(const char* section, const char* key,
+                        const char* value, void* user_data) {
+    auto* context = static_cast<OstPlaylistBrowseContext*>(user_data);
+    if (std::strcmp(section, context->section) != 0) {
+        return 1;
+    }
+
+    if (std::strcmp(key, "count") == 0) {
+        char* end{};
+        const auto parsed = std::strtol(value, &end, 10);
+        if (end != value && *end == '\0') {
+            context->config.count = std::clamp<long>(
+                parsed, 0, context->max_items);
+        }
+        return 1;
+    }
+
+    if (std::strcmp(key, "shuffle") == 0) {
+        const auto first = value[0];
+        if (first == '1' || first == 'y' || first == 'Y' ||
+            first == 't' || first == 'T') {
+            context->config.shuffle = true;
+        } else if (first == '0' || first == 'n' || first == 'N' ||
+                   first == 'f' || first == 'F') {
+            context->config.shuffle = false;
+        }
+        return 1;
+    }
+
+    if (std::strcmp(key, "repeat") == 0) {
+        char* end{};
+        const auto parsed = std::strtol(value, &end, 10);
+        if (end != value && *end == '\0') {
+            context->config.repeat = std::clamp<long>(parsed, 0, 2);
+        }
+        return 1;
+    }
+
+    if (std::strncmp(key, "item_", 5) != 0) {
+        return 1;
+    }
+
+    char* end{};
+    const auto index = std::strtoul(key + 5, &end, 10);
+    if (end == key + 5 || *end != '\0' || index >= context->max_items) {
+        return 1;
+    }
+
+    auto* destination = context->out + index * context->item_stride;
+    std::snprintf(destination, applet_bgm::PathSizeMax, "%s", value);
+    return 1;
 }
 
 }
@@ -154,6 +216,29 @@ auto get_ost_playlist_item(u64 tid, u32 index, char* out, int max_len) -> int {
     get_ost_section(tid, section, sizeof(section));
     get_ost_item_key(index, key, sizeof(key));
     return ini_gets(section, key, "", out, max_len, CONFIG_PATH);
+}
+
+auto load_ost_playlist(u64 tid, char* out, size_t item_stride,
+                       u32 max_items) -> OstPlaylistConfig {
+    if (!out || item_stride < applet_bgm::PathSizeMax || max_items == 0) {
+        return {};
+    }
+
+    max_items = std::min(max_items, applet_bgm::PlaylistMax);
+    for (u32 i = 0; i < max_items; i++) {
+        out[i * item_stride] = '\0';
+    }
+
+    OstPlaylistBrowseContext context{
+        .out = out,
+        .item_stride = item_stride,
+        .max_items = max_items,
+    };
+    get_ost_section(tid, context.section, sizeof(context.section));
+    if (!ini_browse(browse_ost_playlist, &context, CONFIG_PATH)) {
+        return {};
+    }
+    return context.config;
 }
 
 auto append_ost_playlist_item(u64 tid, const char* path) -> bool {

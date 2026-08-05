@@ -39,6 +39,14 @@ Supported audio files are MP3, FLAC, WAV, and WAVE. Paths must be shorter than
 it requires an additional MP4 demuxer and AAC decoder, and the available
 licensing/memory tradeoffs are not suitable for this small resident sysmodule.
 
+State detection is polled every 50 ms. The next soundtrack begins after the
+configured sequential fade-out; playlist loading and decoder setup do not add
+an intentional wait. HOME's live decoder is retained while another applet is
+in front, so returning HOME does not reopen and seek through the track.
+Headerless MP3s also start without an up-front whole-file duration scan. Such a
+file shows an unknown total duration (`--:--`) and disables seeking for that
+playback, but otherwise plays, loops, and advances normally.
+
 ## Detectable states
 
 The overlay includes Album / Photos, Controllers, User Page, Mii Editor,

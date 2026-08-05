@@ -44,6 +44,7 @@ struct OstSession {
     ShuffleMode shuffle{ShuffleMode::Off};
     bool paused{};
     bool finished{};
+    u32 generation{};
 
     const OstTrack* Current() const {
         if (finished || count == 0 || position >= count) {
@@ -137,6 +138,53 @@ struct PlaybackResult {
     u32 current_frame{};
 };
 
+struct PlaybackSourceCache {
+    std::unique_ptr<Source> source{};
+    char path[applet_bgm::PathSizeMax]{};
+    u32 position{};
+    u32 generation{};
+
+    void Clear() {
+        source.reset();
+        path[0] = '\0';
+        position = 0;
+        generation = 0;
+    }
+
+    bool Take(const char* requested_path, u32 requested_position,
+              u32 requested_generation, u32 requested_frame,
+              std::unique_ptr<Source>& out) {
+        const bool matches = source &&
+            position == requested_position &&
+            generation == requested_generation &&
+            std::strcmp(path, requested_path) == 0 &&
+            source->Tell().first == requested_frame;
+        if (!matches) {
+            Clear();
+            return false;
+        }
+
+        // Another decoder may have used the shared compressed-data cache while
+        // HOME was in the background. Its decoder/resampler state is retained,
+        // but the shared file cache must be repopulated from this file.
+        source->ResetIoBuffer();
+        out = std::move(source);
+        path[0] = '\0';
+        position = 0;
+        generation = 0;
+        return true;
+    }
+
+    void Store(const char* cached_path, u32 cached_position,
+               u32 cached_generation, std::unique_ptr<Source> cached_source) {
+        Clear();
+        std::snprintf(path, sizeof(path), "%s", cached_path);
+        position = cached_position;
+        generation = cached_generation;
+        source = std::move(cached_source);
+    }
+};
+
 LockableMutex g_mutex;
 LockableMutex g_startup_mutex;
 
@@ -146,6 +194,7 @@ OstSession g_startup_session;
 OstSession* g_active_session{};
 u64 g_active_state{applet_bgm::SilentTitleId};
 bool g_home_initialized{};
+u32 g_session_generation{};
 
 std::atomic<PlayerStatus> g_status = PlayerStatus::FetchNext;
 Source* g_source{};
@@ -201,25 +250,32 @@ bool IsPlayablePath(const char* path) {
 void LoadSession(OstSession& session, u64 state, bool startup) {
     session = {};
     session.state = state;
+    session.generation = ++g_session_generation;
+    if (session.generation == 0) {
+        session.generation = ++g_session_generation;
+    }
+
+    // Read the whole playlist in one INI pass. File existence is deliberately
+    // checked only when a track is opened; probing every path on every applet
+    // activation can be surprisingly expensive on an SD card.
+    const auto loaded = config::load_ost_playlist(
+        state, session.tracks[0].path, sizeof(session.tracks[0]),
+        session.tracks.size());
     session.repeat = startup
         ? RepeatMode::Off
-        : static_cast<RepeatMode>(config::get_ost_repeat(state));
-    session.shuffle = startup || config::get_ost_shuffle(state)
+        : static_cast<RepeatMode>(loaded.repeat);
+    session.shuffle = startup || loaded.shuffle
         ? ShuffleMode::On
         : ShuffleMode::Off;
 
-    const auto configured_count = config::get_ost_playlist_size(state);
-    char path[applet_bgm::PathSizeMax]{};
-    for (u32 i = 0; i < configured_count && session.count < session.tracks.size(); i++) {
-        if (!config::get_ost_playlist_item(state, i, path, sizeof(path)) ||
-            !IsPlayablePath(path)) {
+    for (u32 i = 0; i < loaded.count; i++) {
+        auto& track = session.tracks[i];
+        if (track.path[0] == '\0' || GetSourceType(track.path) == SourceType::NONE) {
             continue;
         }
 
-        auto& track = session.tracks[session.count];
-        std::snprintf(track.path, sizeof(track.path), "%s", path);
         track.valid = true;
-        session.order[session.count] = session.count;
+        session.order[session.count] = i;
         session.count++;
     }
 
@@ -230,8 +286,9 @@ void LoadSession(OstSession& session, u64 state, bool startup) {
 
     if (startup) {
         const auto chosen = static_cast<u32>(randomGet64() % session.count);
-        if (chosen != 0) {
-            session.tracks[0] = session.tracks[chosen];
+        const auto chosen_track = session.order[chosen];
+        if (chosen_track != 0) {
+            session.tracks[0] = session.tracks[chosen_track];
         }
         session.order[0] = 0;
         session.count = 1;
@@ -485,16 +542,23 @@ void ApplyGain(s16* samples, size_t byte_count, float start_gain, float end_gain
     }
 }
 
-PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial) {
-    auto source = OpenFile(path);
-    if (!source || !source->IsOpen()) {
-        return {tune::FileOpenFailure, PlaybackEnd::Error, 0};
-    }
-    if (!source->SetupResampler(audoutGetChannelCount(), audoutGetSampleRate())) {
-        return {tune::VoiceInitFailure, PlaybackEnd::Error, 0};
-    }
-    if (resume_frame != 0 && !source->Seek(resume_frame)) {
-        resume_frame = 0;
+PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
+                         u32 playing_position, u32 playing_generation,
+                         PlaybackSourceCache* resume_cache) {
+    std::unique_ptr<Source> source;
+    const bool reused_source = resume_cache && resume_cache->Take(
+        path, playing_position, playing_generation, resume_frame, source);
+    if (!reused_source) {
+        source = OpenFile(path);
+        if (!source || !source->IsOpen()) {
+            return {tune::FileOpenFailure, PlaybackEnd::Error, 0};
+        }
+        if (!source->SetupResampler(audoutGetChannelCount(), audoutGetSampleRate())) {
+            return {tune::VoiceInitFailure, PlaybackEnd::Error, 0};
+        }
+        if (resume_frame != 0 && !source->Seek(resume_frame)) {
+            resume_frame = 0;
+        }
     }
 
     AudioOutState state;
@@ -649,9 +713,20 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial) {
     if (!g_should_run && outcome.end == PlaybackEnd::Error && R_SUCCEEDED(outcome.result)) {
         outcome = {0, PlaybackEnd::Interrupted, source->Tell().first};
     }
+    const bool retain_source = g_should_run && resume_cache &&
+        outcome.end == PlaybackEnd::Interrupted && R_SUCCEEDED(outcome.result);
+    if (retain_source) {
+        // The fade consumes decoded audio. Retaining the decoder at its actual
+        // post-fade position avoids a linear MP3 seek when HOME resumes.
+        outcome.current_frame = source->Tell().first;
+    }
     {
         std::scoped_lock lk(g_mutex);
         g_source = nullptr;
+    }
+    if (retain_source) {
+        resume_cache->Store(path, playing_position, playing_generation,
+                            std::move(source));
     }
     return outcome;
 }
@@ -718,6 +793,8 @@ void Finalize() {
 }
 
 void TuneThreadFunc(void*) {
+    PlaybackSourceCache home_source_cache;
+
     while (g_should_run) {
         u32 play_serial = 0;
         do {
@@ -729,6 +806,7 @@ void TuneThreadFunc(void*) {
         u32 resume_frame = 0;
         u64 playing_state = applet_bgm::SilentTitleId;
         u32 playing_position = 0;
+        u32 playing_generation = 0;
         u32 playing_startup_generation = 0;
         {
             std::scoped_lock lk(g_mutex);
@@ -739,6 +817,7 @@ void TuneThreadFunc(void*) {
                     resume_frame = g_active_session->resume_frame;
                     playing_state = g_active_state;
                     playing_position = g_active_session->position;
+                    playing_generation = g_active_session->generation;
                     if (playing_state == applet_bgm::StartupTitleId) {
                         playing_startup_generation =
                             g_startup_generation.load(std::memory_order_acquire);
@@ -750,6 +829,9 @@ void TuneThreadFunc(void*) {
         }
 
         if (play_path[0] == '\0') {
+            if (!g_master_enabled) {
+                home_source_cache.Clear();
+            }
             g_status = PlayerStatus::FetchNext;
             bool startup_exhausted = false;
             u32 startup_generation = 0;
@@ -770,7 +852,11 @@ void TuneThreadFunc(void*) {
             continue;
         }
 
-        const auto playback = PlayTrack(play_path, resume_frame, play_serial);
+        const auto playback = PlayTrack(
+            play_path, resume_frame, play_serial, playing_position,
+            playing_generation,
+            playing_state == applet_bgm::QlaunchTitleId
+                ? &home_source_cache : nullptr);
         bool startup_finished = false;
         {
             std::scoped_lock lk(g_mutex);

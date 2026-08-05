@@ -131,7 +131,7 @@ namespace {
 
 Source::Source(FsFile &&file) : m_file(file), m_offset(0), m_size(0) {
     file = {};
-    m_buffered.off = m_buffered.size = 0;
+    ResetIoBuffer();
     if (R_FAILED(fsFileGetSize(&this->m_file, &this->m_size)))
         this->m_size = 0;
 }
@@ -268,6 +268,16 @@ bool Source::SeekFile(s64 offset, int origin) {
     }
 }
 
+void Source::ResetIoBuffer() {
+    // The compressed-file read cache is shared to keep the sysmodule's memory
+    // footprint small. A retained HOME decoder and the currently playing
+    // applet decoder never read concurrently, so clearing the cache when the
+    // active source changes prevents bytes from one file being reused by the
+    // other without paying for another 64 KiB buffer.
+    m_buffered.off = 0;
+    m_buffered.size = 0;
+}
+
 s64 Source::TellFile() {
     return this->m_offset;
 }
@@ -327,15 +337,21 @@ class FlacFile final : public Source {
 #ifdef WANT_MP3
 class Mp3File final : public Source {
   private:
-    drmp3 m_mp3;
-    bool initialized;
-    u64 m_total_frame_count;
+    drmp3 m_mp3{};
+    bool initialized{};
+    u64 m_total_frame_count{};
 
   public:
     Mp3File(FsFile &&file) : Source(std::move(file)) {
         if (drmp3_init(&this->m_mp3, ReadCallback, Mp3SeekCallback, Mp3TellCallback, nullptr, this, mp3_alloc_ptr)) {
-            this->m_total_frame_count = drmp3_get_pcm_frame_count(&this->m_mp3);
-            this->initialized         = true;
+            // drmp3_get_pcm_frame_count() scans and decodes the entire file
+            // when an MP3 has no Xing/Info duration header. That made a state
+            // switch wait several seconds before the first audio buffer. Only
+            // query it when dr_mp3 already knows the answer from the header.
+            if (this->m_mp3.totalPCMFrameCount != DRMP3_UINT64_MAX) {
+                this->m_total_frame_count = drmp3_get_pcm_frame_count(&this->m_mp3);
+            }
+            this->initialized = true;
         }
     }
     ~Mp3File() {
@@ -365,6 +381,14 @@ class Mp3File final : public Source {
         return drmp3_seek_to_pcm_frame(&this->m_mp3, target);
     }
 
+    bool Done() override {
+        std::scoped_lock lk(this->m_mutex);
+
+        // Headerless MP3s deliberately report an unknown total above. Decoder
+        // EOF remains authoritative and avoids treating 0/0 as an empty file.
+        return this->m_mp3.atEnd == DRMP3_TRUE;
+    }
+
     int GetSampleRate() override {
         return this->m_mp3.sampleRate;
     }
@@ -378,9 +402,9 @@ class Mp3File final : public Source {
 #ifdef WANT_WAV
 class WavFile final : public Source {
   private:
-    drwav m_wav;
-    bool initialized;
-    s32 m_bytes_per_pcm;
+    drwav m_wav{};
+    bool initialized{};
+    s32 m_bytes_per_pcm{};
 
   public:
     WavFile(FsFile &&file) : Source(std::move(file)) {

@@ -50,6 +50,15 @@ void set_applet_bgm_path(u64 tid, const char* path);
 // the special random, one-shot boot/wake sound pool.
 auto get_ost_playlist_size(u64 tid) -> u32;
 auto get_ost_playlist_item(u64 tid, u32 index, char* out, int max_len) -> int;
+struct OstPlaylistConfig {
+    u32 count{};
+    bool shuffle{};
+    int repeat{2};
+};
+// Loads every configured item with a single config-file pass. Each destination
+// begins at out + (index * item_stride) and must hold PathSizeMax bytes.
+auto load_ost_playlist(u64 tid, char* out, size_t item_stride,
+                       u32 max_items) -> OstPlaylistConfig;
 auto append_ost_playlist_item(u64 tid, const char* path) -> bool;
 auto remove_ost_playlist_item(u64 tid, u32 index) -> bool;
 auto move_ost_playlist_item(u64 tid, u32 src, u32 dst) -> bool;

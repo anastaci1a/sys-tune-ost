@@ -59,13 +59,14 @@ class Source {
     size_t ReadFile(void *buffer, size_t read_size);
     s64 TellFile();
     bool SeekFile(s64 offset, int origin);
+    void ResetIoBuffer();
 
     virtual bool IsOpen() = 0;
     virtual size_t Decode(size_t sample_count, s16 *data) = 0;
     virtual std::pair<u32, u32> Tell() = 0;
     virtual bool Seek(u64 target) = 0;
 
-    bool Done();
+    virtual bool Done();
 
     virtual int GetSampleRate() = 0;
     virtual int GetChannelCount() = 0;
