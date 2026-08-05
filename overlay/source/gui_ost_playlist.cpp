@@ -2,7 +2,9 @@
 
 #include "applet_bgm.hpp"
 #include "config/config.hpp"
+#include "elm_text_block.hpp"
 #include "gui_browser.hpp"
+#include "ost_ui_state.hpp"
 #include "tune.h"
 
 #include <algorithm>
@@ -29,40 +31,35 @@ tsl::elm::Element* OstPlaylistGui::createUI() {
     populate();
     m_frame->setDescription(m_startup
         ? "\uE0E1 Back    \uE0E0 Open    \uE0E3 Remove"
-        : "\uE0E1 Back  \uE0E0 Open  \uE0E3 Remove  ZL/ZR Move");
+        : "\uE0E1 Back   \uE0E0 Open   \uE0E3 Remove\nZL/ZR Move");
     m_frame->setContent(m_list);
     return m_frame;
 }
 
 void OstPlaylistGui::populate() {
-    m_known_count = config::get_ost_playlist_size(m_title_id);
+    m_paths = readPlaylist();
+    m_known_count = m_paths.size();
+    m_seen_revision = ost_ui_state::getPlaylistRevision(m_title_id);
     m_list->addItem(new tsl::elm::CategoryHeader(m_name));
 
     if (m_startup) {
+        m_list->addItem(new tsl::elm::CategoryHeader("Startup Behavior"));
         auto startup_on_wake = new tsl::elm::ToggleListItem(
-            "Play after waking", config::get_startup_on_wake(), "On", "Off");
+            "Include Wake from Sleep", config::get_startup_on_wake(),
+            "On", "Off");
         startup_on_wake->setStateChangedListener([](bool value) {
             config::set_startup_on_wake(value);
             tuneReloadOstMisc();
         });
         m_list->addItem(startup_on_wake);
-        m_list->addItem(new tsl::elm::CategoryHeader(
-            "Off: cold boot only", true));
-        m_list->addItem(new tsl::elm::CategoryHeader(
-            "On: cold boot + every wake from sleep", true));
-        m_list->addItem(new tsl::elm::CategoryHeader(
-            "One sound is chosen randomly each time", true));
-        m_list->addItem(new tsl::elm::CategoryHeader(
-            "HOME may begin when that sound finishes", true));
-        m_list->addItem(new tsl::elm::CategoryHeader(
-            "Another applet or game ends it early", true));
     } else {
+        m_list->addItem(new tsl::elm::CategoryHeader("Playback Options"));
         const bool shuffle_enabled = config::get_ost_shuffle(m_title_id);
         auto shuffle = new tsl::elm::ToggleListItem(
-            "Shuffle on activation", shuffle_enabled, "On", "Off");
+            "Shuffle on Activation", shuffle_enabled, "On", "Off");
         shuffle->setStateChangedListener([this](bool value) {
             config::set_ost_shuffle(m_title_id, value);
-            tuneReloadOstState(m_title_id);
+            markPlaylistChanged();
         });
         m_list->addItem(shuffle);
 
@@ -86,17 +83,17 @@ void OstPlaylistGui::populate() {
         m_list->addItem(repeat);
 
         if (m_title_id == applet_bgm::QlaunchTitleId) {
-            m_list->addItem(new tsl::elm::CategoryHeader(
-                "Home, Settings, and Lock share qlaunch", true));
-            m_list->addItem(new tsl::elm::CategoryHeader(
-                "HOME pauses for applets, then resumes", true));
+            m_list->addItem(new ElmTextBlock(
+                "Home, Settings, and Lock share qlaunch.\n"
+                "HOME pauses for applets, then resumes."));
         } else {
-            m_list->addItem(new tsl::elm::CategoryHeader(
-                "Restarts whenever this applet opens", true));
+            m_list->addItem(new ElmTextBlock(
+                "The playlist restarts whenever this applet opens."));
         }
     }
 
-    auto add = new tsl::elm::ListItem("Add songs");
+    m_list->addItem(new tsl::elm::CategoryHeader("Playlist Management"));
+    auto add = new tsl::elm::ListItem("Add Songs");
     add->setClickListener([this](u64 keys) {
         if (keys & HidNpadButton_A) {
             tsl::changeTo<BrowserGui>(m_title_id, m_name);
@@ -106,83 +103,199 @@ void OstPlaylistGui::populate() {
     });
     m_list->addItem(add);
 
-    auto clear = new tsl::elm::ListItem("Clear playlist");
+    auto clear = new tsl::elm::ListItem("Clear Playlist");
     clear->setClickListener([this](u64 keys) {
-        if ((keys & HidNpadButton_A) && config::get_ost_playlist_size(m_title_id) != 0) {
-            config::clear_ost_playlist(m_title_id);
-            tuneReloadOstState(m_title_id);
-            m_frame->setToast("Playlist cleared", m_name);
-            requestRebuild();
+        if ((keys & HidNpadButton_A) && !m_paths.empty()) {
+            clearPlaylist();
             return true;
         }
         return false;
     });
     m_list->addItem(clear);
 
-    m_list->addItem(new tsl::elm::CategoryHeader(
-        "Playlist — " + std::to_string(m_known_count) +
-        (m_known_count == 1 ? " track" : " tracks")));
+    m_playlist_header = new tsl::elm::CategoryHeader("");
+    m_list->addItem(m_playlist_header);
+    updatePlaylistSummary();
 
     if (m_known_count == 0) {
-        auto empty = new tsl::elm::ListItem("No songs yet", "Add songs above");
-        empty->setValue("Add songs above", true);
-        m_list->addItem(empty);
+        m_empty_item = new tsl::elm::ListItem("No Songs Yet", "Add Songs Above");
+        m_empty_item->setValue("Add Songs Above", true);
+        m_list->addItem(m_empty_item);
         return;
     }
 
-    char path[applet_bgm::PathSizeMax]{};
     for (u32 index = 0; index < m_known_count; index++) {
-        if (!config::get_ost_playlist_item(m_title_id, index, path, sizeof(path))) {
-            continue;
-        }
-
-        auto item = new tsl::elm::ListItem(
-            FileName(path), std::to_string(index + 1));
-        item->setClickListener([this, index](u64 keys) {
-            if (keys & HidNpadButton_Y) {
-                if (config::remove_ost_playlist_item(m_title_id, index)) {
-                    tuneReloadOstState(m_title_id);
-                    requestRebuild();
-                }
-                return true;
-            }
-
-            if (!m_startup && (keys & HidNpadButton_ZL) && index > 0) {
-                if (config::move_ost_playlist_item(m_title_id, index, index - 1)) {
-                    tuneReloadOstState(m_title_id);
-                    requestRebuild();
-                }
-                return true;
-            }
-
-            if (!m_startup && (keys & HidNpadButton_ZR) && index + 1 < m_known_count) {
-                if (config::move_ost_playlist_item(m_title_id, index, index + 1)) {
-                    tuneReloadOstState(m_title_id);
-                    requestRebuild();
-                }
-                return true;
-            }
-            return false;
-        });
-        m_list->addItem(item);
+        addTrackItem(m_paths[index]);
     }
 }
 
-void OstPlaylistGui::requestRebuild() {
-    m_rebuild_pending = true;
+std::vector<std::string> OstPlaylistGui::readPlaylist() const {
+    using PathBuffer = std::array<char, applet_bgm::PathSizeMax>;
+    std::vector<PathBuffer> path_buffers(applet_bgm::PlaylistMax);
+    const auto loaded = config::load_ost_playlist(
+        m_title_id, path_buffers.front().data(), sizeof(PathBuffer),
+        path_buffers.size());
+
+    std::vector<std::string> paths;
+    paths.reserve(loaded.count);
+    for (u32 index = 0; index < loaded.count; index++) {
+        paths.emplace_back(path_buffers[index].data());
+    }
+    return paths;
+}
+
+void OstPlaylistGui::syncPlaylist() {
+    auto paths = readPlaylist();
+    const auto shared_count = std::min(paths.size(), m_track_items.size());
+    for (size_t index = 0; index < shared_count; index++) {
+        if (paths[index] != m_paths[index]) {
+            m_track_items[index]->setText(FileName(paths[index].c_str()));
+        }
+    }
+
+    while (m_track_items.size() > paths.size()) {
+        auto* item = m_track_items.back();
+        if (getFocusedElement() == item) {
+            tsl::Gui::requestFocus(m_list, tsl::FocusDirection::Up, false);
+        }
+        m_track_items.pop_back();
+        m_list->removeItem(item);
+    }
+
+    m_paths = std::move(paths);
+    while (m_track_items.size() < m_paths.size()) {
+        addTrackItem(m_paths[m_track_items.size()]);
+    }
+
+    if (m_paths.empty() && !m_empty_item) {
+        m_empty_item = new tsl::elm::ListItem("No Songs Yet", "Add Songs Above");
+        m_empty_item->setValue("Add Songs Above", true);
+        m_list->addItem(m_empty_item);
+    } else if (!m_paths.empty() && m_empty_item) {
+        m_list->removeItem(m_empty_item);
+        m_empty_item = nullptr;
+    }
+
+    m_known_count = m_paths.size();
+    updatePlaylistSummary();
+}
+
+void OstPlaylistGui::addTrackItem(const std::string& path) {
+    auto item = new tsl::elm::ListItem(
+        FileName(path.c_str()), std::to_string(m_track_items.size() + 1));
+    item->setClickListener([this, item](u64 keys) {
+        const auto position =
+            std::find(m_track_items.begin(), m_track_items.end(), item);
+        if (position == m_track_items.end()) {
+            return false;
+        }
+        const auto index = static_cast<u32>(position - m_track_items.begin());
+
+        if (keys & HidNpadButton_Y) {
+            removeTrack(index);
+            return true;
+        }
+        if (!m_startup && (keys & HidNpadButton_ZL) && index > 0) {
+            moveTrack(index, index - 1);
+            return true;
+        }
+        if (!m_startup && (keys & HidNpadButton_ZR) &&
+            index + 1 < m_track_items.size()) {
+            moveTrack(index, index + 1);
+            return true;
+        }
+        return false;
+    });
+    m_track_items.push_back(item);
+    m_list->addItem(item);
+}
+
+void OstPlaylistGui::removeTrack(u32 index) {
+    if (index >= m_paths.size() ||
+        !config::remove_ost_playlist_item(m_title_id, index)) {
+        return;
+    }
+
+    if (index + 1 == m_track_items.size()) {
+        tsl::Gui::requestFocus(m_list, tsl::FocusDirection::Up, false);
+    }
+
+    m_paths.erase(m_paths.begin() + index);
+    for (size_t position = index; position < m_paths.size(); position++) {
+        m_track_items[position]->setText(FileName(m_paths[position].c_str()));
+        m_track_items[position]->setValue(std::to_string(position + 1));
+    }
+
+    auto* removed_item = m_track_items.back();
+    m_track_items.pop_back();
+    m_list->removeItem(removed_item);
+    m_known_count = m_paths.size();
+
+    if (m_paths.empty()) {
+        m_empty_item = new tsl::elm::ListItem("No Songs Yet", "Add Songs Above");
+        m_empty_item->setValue("Add Songs Above", true);
+        m_list->addItem(m_empty_item);
+    }
+    updatePlaylistSummary();
+    markPlaylistChanged();
+}
+
+void OstPlaylistGui::moveTrack(u32 index, u32 destination) {
+    if (index >= m_paths.size() || destination >= m_paths.size() ||
+        !config::move_ost_playlist_item(m_title_id, index, destination)) {
+        return;
+    }
+
+    std::swap(m_paths[index], m_paths[destination]);
+    m_track_items[index]->setText(FileName(m_paths[index].c_str()));
+    m_track_items[destination]->setText(FileName(m_paths[destination].c_str()));
+    markPlaylistChanged();
+    tsl::Gui::requestFocus(
+        m_list, destination < index
+            ? tsl::FocusDirection::Up : tsl::FocusDirection::Down,
+        false);
+}
+
+void OstPlaylistGui::clearPlaylist() {
+    config::clear_ost_playlist(m_title_id);
+    for (auto* item : m_track_items) {
+        m_list->removeItem(item);
+    }
+    m_track_items.clear();
+    m_paths.clear();
+    m_known_count = 0;
+
+    m_empty_item = new tsl::elm::ListItem("No Songs Yet", "Add Songs Above");
+    m_empty_item->setValue("Add Songs Above", true);
+    m_list->addItem(m_empty_item);
+    updatePlaylistSummary();
+    markPlaylistChanged();
+    m_frame->setToast("Playlist Cleared", m_name);
+}
+
+void OstPlaylistGui::updatePlaylistSummary() {
+    m_playlist_header->setText(
+        "Playlist — " + std::to_string(m_known_count) +
+        (m_known_count == 1 ? " Track" : " Tracks"));
+}
+
+void OstPlaylistGui::markPlaylistChanged() {
+    m_seen_revision = ost_ui_state::markPlaylistChanged(m_title_id);
 }
 
 void OstPlaylistGui::update() {
-    static u8 tick = 0;
-    if ((tick++ % 15) == 0 &&
-        config::get_ost_playlist_size(m_title_id) != m_known_count) {
-        m_rebuild_pending = true;
+    const auto revision = ost_ui_state::getPlaylistRevision(m_title_id);
+    if (revision != m_seen_revision) {
+        syncPlaylist();
+        m_seen_revision = revision;
     }
+}
 
-    if (m_rebuild_pending) {
-        tsl::Gui::removeFocus();
-        m_list->clear();
-        populate();
-        m_rebuild_pending = false;
+bool OstPlaylistGui::handleInput(
+    u64 keysDown, u64, const HidTouchState&,
+    HidAnalogStickState, HidAnalogStickState) {
+    if (keysDown & HidNpadButton_B) {
+        ost_ui_state::flushPlaylistReload(m_title_id);
     }
+    return false;
 }

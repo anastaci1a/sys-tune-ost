@@ -15,9 +15,9 @@ The master **System UI OST** switch is disabled by default. When enabled:
   fades back in and resumes;
 - each normal playlist has persistent shuffle and repeat Off / One / All modes;
 - Startup Sound chooses one random entry once when the sysmodule starts at cold
-  boot, with an optional **Play after waking** toggle to choose a fresh random
-  entry after every system-sleep wake; it yields when it finishes or when
-  anything other than Home opens; and
+  boot, with an optional **Include Wake from Sleep** toggle to choose a fresh
+  random entry after every system-sleep wake; it yields when it finishes or
+  when anything other than Home opens; and
 - global 0–5 second fade-in and fade-out settings smooth track, applet, pause,
   Startup, and stop transitions. These are sequential fades, not overlapping
   crossfades.
@@ -70,8 +70,8 @@ resumes only after the foreground application closes.
 
 Configuration is stored in `/config/sys-tune/config.ini`. Playlist contents,
 order, shuffle, repeat, Startup wake mode, fades, volume, and the master switch
-survive reboot. **Play after waking** is off by default, preserving cold-boot-only
-Startup behavior.
+survive reboot. **Include Wake from Sleep** is off by default, preserving
+cold-boot-only Startup behavior.
 
 On first launch this build automatically imports:
 
@@ -90,15 +90,20 @@ The migration is one-time and does not delete the legacy keys.
 3. Copy the contents of `dist/` to the root of the SD card.
 4. Put audio files under `/music/` (subfolders are supported).
 5. Fully reboot the console.
-6. Open Ultrahand/Tesla, choose **sys-tune → Manage soundtracks**, build each
+6. Open Ultrahand/Tesla, choose **sys-tune → Manage Soundtracks**, build each
    playlist, then enable **System UI OST** on the main page.
 
-Use **A** on “Add songs” to open the browser and **X** there to add every
+Use **A** on “Add Songs” to open the browser and **X** there to add every
 supported file in the current folder. In a playlist, use **Y** to remove and
 **ZL/ZR** to move an entry. Fade and output-volume controls live under
 **Misc Options**. Fade-in and fade-out use tapered sliders from off through 5
 seconds, with finer steps for short fades and progressively wider steps for
 long fades.
+
+Playlist moves, removals, and additions update rows in place without rebuilding
+the menu or resetting its cursor. Playback reload is deferred until leaving the
+playlist editor, hiding the overlay, or closing it, so a sequence of edits does
+not repeatedly interrupt the active soundtrack.
 
 The overlay and sysmodule use API version 8. Install both from the same build;
 an older overlay will correctly report the sysmodule as unsupported, and vice

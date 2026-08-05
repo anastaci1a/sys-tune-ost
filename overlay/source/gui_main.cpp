@@ -16,7 +16,7 @@ tsl::elm::Element *MainGui::createUI() {
     /* Current track. */
     list->addItem(this->m_status_bar, tsl::style::ListItemDefaultHeight * 3);
 
-    list->addItem(new tsl::elm::CategoryHeader("System UI soundtracks"));
+    list->addItem(new tsl::elm::CategoryHeader("System UI Soundtracks"));
 
     auto enabled = new tsl::elm::ToggleListItem(
         "System UI OST", config::get_applet_bgm_enabled(), "On", "Off");
@@ -26,7 +26,7 @@ tsl::elm::Element *MainGui::createUI() {
     });
     list->addItem(enabled);
 
-    auto soundtracks_button = new tsl::elm::ListItem("Manage soundtracks");
+    auto soundtracks_button = new tsl::elm::ListItem("Manage Soundtracks");
     soundtracks_button->setClickListener([](u64 keys) {
         if (keys & HidNpadButton_A) {
             tsl::changeTo<AppletBgmGui>();

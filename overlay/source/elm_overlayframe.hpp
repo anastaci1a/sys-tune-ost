@@ -3,6 +3,7 @@
 #include <tesla.hpp>
 #include <memory>
 #include <optional>
+#include <string>
 
 /**
  * @brief The base frame which can contain another view
@@ -25,9 +26,16 @@ public:
         renderer->drawString("sys-tune UI OST \u266B", false, 20, 50, 30, a(tsl::style::color::ColorText));
         renderer->drawString(VERSION, false, 20, 70, 15, a(tsl::style::color::ColorDescription));
 
-        renderer->drawRect(15, tsl::cfg::FramebufferHeight - 73, tsl::cfg::FramebufferWidth - 30, 1, a(tsl::style::color::ColorText));
+        renderer->drawRect(
+            15, tsl::cfg::FramebufferHeight - footerHeight(),
+            tsl::cfg::FramebufferWidth - 30, 1,
+            a(tsl::style::color::ColorText));
 
-        renderer->drawString(m_description, false, 30, 693, 23, a(tsl::style::color::ColorText));
+        renderer->drawString(
+            m_description.c_str(), false, 30,
+            hasMultilineDescription() ? 671 : 693,
+            hasMultilineDescription() ? 20 : 23,
+            a(tsl::style::color::ColorText));
 
         if (m_contentElement != nullptr)
             m_contentElement->frame(renderer);
@@ -62,7 +70,9 @@ public:
         setBoundaries(parentX, parentY, parentWidth, parentHeight);
 
         if (m_contentElement != nullptr) {
-            m_contentElement->setBoundaries(parentX + 35, parentY + 125, parentWidth - 85, parentHeight - 73 - 125);
+            m_contentElement->setBoundaries(
+                parentX + 35, parentY + 125, parentWidth - 85,
+                parentHeight - footerHeight() - 125);
             m_contentElement->invalidate();
         }
     }
@@ -98,8 +108,9 @@ public:
         }
     }
 
-    void setDescription(const char *description) {
+    void setDescription(const std::string& description) {
         m_description = description;
+        invalidate();
     }
 
     struct Toast {
@@ -114,8 +125,16 @@ public:
     }
 
 private:
+    bool hasMultilineDescription() const {
+        return m_description.find('\n') != std::string::npos;
+    }
+
+    u16 footerHeight() const {
+        return hasMultilineDescription() ? 96 : 73;
+    }
+
     std::unique_ptr<tsl::elm::Element> m_contentElement;
-    const char *m_description = "\uE0E1  Back     \uE0E0  OK";
+    std::string m_description = "\uE0E1  Back     \uE0E0  OK";
 
     std::optional<Toast> m_toast;
 };

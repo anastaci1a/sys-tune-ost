@@ -40,7 +40,7 @@ namespace {
                 return std::string(target.name) + " OST";
             }
         }
-        return "No active UI OST";
+        return "No Active UI OST";
     }
 
 }

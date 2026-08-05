@@ -1,6 +1,7 @@
 #include "gui_misc.hpp"
 
 #include "elm_overlayframe.hpp"
+#include "elm_text_block.hpp"
 #include "elm_volume.hpp"
 #include "config/config.hpp"
 #include "tune.h"
@@ -71,14 +72,13 @@ tsl::elm::Element* MiscGui::createUI() {
     auto list = new tsl::elm::List();
 
     list->addItem(new tsl::elm::CategoryHeader("Transitions"));
-    list->addItem(new tsl::elm::CategoryHeader(
-        "Fade-out then fade-in; tracks do not overlap", true));
-    list->addItem(new tsl::elm::CategoryHeader(
-        "Short fades use finer slider steps", true));
+    list->addItem(new ElmTextBlock(
+        "Fade-out then fade-in; tracks do not overlap.\n"
+        "Short fades use finer slider steps."));
     list->addItem(MakeDurationSlider(
-        "Fade in", config::get_fade_in_ms(), config::set_fade_in_ms));
+        "Fade In", config::get_fade_in_ms(), config::set_fade_in_ms));
     list->addItem(MakeDurationSlider(
-        "Fade out", config::get_fade_out_ms(), config::set_fade_out_ms));
+        "Fade Out", config::get_fade_out_ms(), config::set_fade_out_ms));
 
     list->addItem(new tsl::elm::CategoryHeader("Output"));
     constexpr size_t VolumeSteps = 21;

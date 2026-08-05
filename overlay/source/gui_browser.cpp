@@ -2,7 +2,7 @@
 
 #include "applet_bgm.hpp"
 #include "config/config.hpp"
-#include "tune.h"
+#include "ost_ui_state.hpp"
 
 #include <utility>
 
@@ -69,7 +69,7 @@ BrowserGui::BrowserGui(u64 ost_state, std::string ost_name)
         }
         this->scanCwd();
     } else {
-        this->m_list->addItem(new tsl::elm::CategoryHeader("Couldn't open SdCard"));
+        this->m_list->addItem(new tsl::elm::CategoryHeader("Couldn't Open SD Card"));
     }
 }
 
@@ -80,7 +80,7 @@ BrowserGui::~BrowserGui() {
 tsl::elm::Element *BrowserGui::createUI() {
     m_frame = new SysTuneOverlayFrame();
 
-    m_frame->setDescription("\uE0E1 Back   \uE0E0 Add   \uE0E2 Add folder");
+    m_frame->setDescription("\uE0E1 Back   \uE0E0 Add   \uE0E2 Add Folder");
     m_frame->setContent(this->m_list);
 
     return m_frame;
@@ -117,7 +117,7 @@ void BrowserGui::scanCwd() {
     if (R_FAILED(rc)) {
         char result_buffer[0x10];
         std::snprintf(result_buffer, 0x10, "2%03X-%04X", R_MODULE(rc), R_DESCRIPTION(rc));
-        this->m_list->addItem(new tsl::elm::ListItem("something went wrong :/"));
+        this->m_list->addItem(new tsl::elm::ListItem("Something Went Wrong :/"));
         this->m_list->addItem(new tsl::elm::ListItem(result_buffer));
         return;
     }
@@ -149,7 +149,7 @@ void BrowserGui::scanCwd() {
                         const auto length = std::strlen(this->cwd);
                         const auto name = item->getText();
                         if (length + name.size() + 1 >= sizeof(this->cwd)) {
-                            m_frame->setToast("Path is too long", "Choose a folder closer to the SD root.");
+                            m_frame->setToast("Path Is Too Long", "Choose a folder closer to the SD root.");
                             return true;
                         }
                         std::snprintf(
@@ -168,12 +168,12 @@ void BrowserGui::scanCwd() {
                     if (down & HidNpadButton_A) {
                         std::snprintf(path_buffer, sizeof(path_buffer), "%s%s", this->cwd, item->getText().c_str());
                         if (std::strlen(path_buffer) >= applet_bgm::PathSizeMax) {
-                            m_frame->setToast("Path is too long", "Keep the full music path below 256 bytes.");
+                            m_frame->setToast("Path Is Too Long", "Keep the full music path below 256 bytes.");
                         } else if (config::append_ost_playlist_item(m_ost_state, path_buffer)) {
-                            tuneReloadOstState(m_ost_state);
-                            m_frame->setToast("Playlist updated", item->getText().c_str());
+                            ost_ui_state::markPlaylistChanged(m_ost_state);
+                            m_frame->setToast("Playlist Updated", item->getText().c_str());
                         } else {
-                            m_frame->setToast("Couldn't add song", "Playlist full or path is invalid.");
+                            m_frame->setToast("Couldn't Add Song", "Playlist full or path is invalid.");
                         }
                         return true;
                     }
@@ -184,7 +184,7 @@ void BrowserGui::scanCwd() {
         }
 
         if (folders.size() + files.size() >= max) {
-            m_frame->setToast("Stopped scanning folder", "maximum of " + std::to_string(max) + " hit");
+            m_frame->setToast("Stopped Scanning Folder", "Maximum of " + std::to_string(max) + " reached.");
             break;
         }
     }
@@ -238,7 +238,7 @@ void BrowserGui::addAllToPlaylist() {
     if (R_FAILED(rc)) {
         char result_buffer[0x10];
         std::snprintf(result_buffer, 0x10, "2%03X-%04X", R_MODULE(rc), R_DESCRIPTION(rc));
-        this->m_list->addItem(new tsl::elm::ListItem("something went wrong :/"));
+        this->m_list->addItem(new tsl::elm::ListItem("Something Went Wrong :/"));
         this->m_list->addItem(new tsl::elm::ListItem(result_buffer));
         return;
     }
@@ -279,9 +279,9 @@ void BrowserGui::addAllToPlaylist() {
     }
 
     if (songs_added != 0) {
-        tuneReloadOstState(m_ost_state);
+        ost_ui_state::markPlaylistChanged(m_ost_state);
     }
 
-    std::snprintf(path_buffer, sizeof(path_buffer), "Added %ld songs to Playlist.", songs_added);
-    m_frame->setToast("Playlist updated", path_buffer);
+    std::snprintf(path_buffer, sizeof(path_buffer), "Added %ld songs to playlist.", songs_added);
+    m_frame->setToast("Playlist Updated", path_buffer);
 }
