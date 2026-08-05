@@ -16,17 +16,21 @@ The master **System UI OST** switch is disabled by default. When enabled:
 - each normal playlist has persistent shuffle and repeat Off / One / All modes;
 - Startup Sound chooses one random entry once when the sysmodule starts at cold
   boot, with an optional **Include Wake from Sleep** toggle to choose a fresh
-  random entry after every system-sleep wake; it may continue through the Lock
-  Screen, then yields when it finishes or when Settings, another applet, or a
-  game opens; and
-- global 0–5 second fade-in and fade-out settings smooth track, applet, pause,
-  Startup, and stop transitions. These are sequential fades, not overlapping
-  crossfades.
+  random entry after every sleep-wake or display-on event; it may continue
+  through the Lock Screen, then yields when it finishes or when Settings,
+  another applet, or a game opens; and
+- separate 0–5 second track-boundary and mid-song fade controls: the original
+  Fade In/Out settings now apply only to track starts and natural endings,
+  while Mid-Song Fade In/Out applies to interruptions, manual pause/resume,
+  early Startup cancellation, and Home's retained pause/resume. These are
+  sequential fades, not overlapping crossfades.
 
-Wake replay keys off Horizon's actual
-[`sleep mode off` power-state event](https://switchbrew.org/wiki/Shared_Database_services#PlayEvent).
-A Power-button sleep, the Sleep Mode menu, and auto-sleep therefore count; a
-display-only on/off transition does not.
+Wake replay keys off Horizon's recorded
+[`PlayEvent` power-state changes](https://switchbrew.org/wiki/Shared_Database_services#PlayEvent).
+A Power-button sleep, the Sleep Mode menu, auto-sleep, and display on/off power
+events therefore count. Entering either display-off or system sleep immediately
+holds playback silent; wake discards any queued pre-sleep audio before routing
+Startup/Lock/Home.
 
 The overlay's top playback panel always controls the currently active UI-state
 playlist. Previous/next, seek, play/pause, repeat, and shuffle change ownership
@@ -41,9 +45,9 @@ it requires an additional MP4 demuxer and AAC decoder, and the available
 licensing/memory tradeoffs are not suitable for this small resident sysmodule.
 
 State detection is polled every 50 ms. The next soundtrack begins after the
-configured sequential fade-out; playlist loading and decoder setup do not add
-an intentional wait. HOME's live decoder is retained while another applet is
-in front, so returning HOME does not reopen and seek through the track.
+configured sequential Mid-Song Fade Out; playlist loading and decoder setup do
+not add an intentional wait. HOME's live decoder is retained while another
+applet is in front, so returning HOME does not reopen and seek through the track.
 Headerless MP3s also start without an up-front whole-file duration scan. Such a
 file shows an unknown total duration (`--:--`) and disables seeking for that
 playback, but otherwise plays, loops, and advances normally.
@@ -68,8 +72,10 @@ three values verified repeatedly on hardware:
 Each now has an independent persistent playlist. Home keeps the old qlaunch
 playlist and its pause/resume behavior; Settings and Lock restart like other
 non-Home UI states. An unrecognized reported scene stays silent instead of
-being mislabeled. If the best-effort observer is unavailable or has not yet
-received a scene, qlaunch falls back to the Home playlist for compatibility.
+being mislabeled. While the observer is waiting for its first scene—such as
+during the boot logo—qlaunch also stays silent, allowing a configured Startup
+Sound to own that period. Only an observer that is genuinely unavailable falls
+back to Home for compatibility.
 
 The observer touches only qlaunch's `erpt:c` connection through Atmosphere's
 MITM extension, records raw scene transitions, and forwards every original
@@ -84,9 +90,11 @@ resumes only after the foreground application closes.
 ## Configuration and migration
 
 Configuration is stored in `/config/sys-tune/config.ini`. Playlist contents,
-order, shuffle, repeat, Startup wake mode, fades, volume, and the master switch
-survive reboot. **Include Wake from Sleep** is off by default, preserving
-cold-boot-only Startup behavior.
+order, shuffle, repeat, Startup wake mode, all four fades, volume, and the master
+switch survive reboot. **Include Wake from Sleep** is off by default, preserving
+cold-boot-only Startup behavior. On upgrade, each new mid-song fade initially
+inherits its corresponding existing fade value so transition behavior does not
+change until it is adjusted.
 
 On first launch this build automatically imports:
 
@@ -114,7 +122,7 @@ the new Settings and Lock playlists begin empty.
 Use **A** on “Add Songs” to open the browser and **X** there to add every
 supported file in the current folder. In a playlist, use **Y** to remove and
 **ZL/ZR** to move an entry. Fade and output-volume controls live under
-**Misc Options**. Fade-in and fade-out use tapered sliders from off through 5
+**Misc Options**. All four fade controls use tapered sliders from off through 5
 seconds, with finer steps for short fades and progressively wider steps for
 long fades.
 
@@ -135,7 +143,7 @@ the menu or resetting its cursor. Playback reload is deferred until leaving the
 playlist editor, hiding the overlay, or closing it, so a sequence of edits does
 not repeatedly interrupt the active soundtrack.
 
-The overlay and sysmodule use API version 9. Install both from the same build;
+The overlay and sysmodule use API version 11. Install both from the same build;
 an older overlay will correctly report the sysmodule as unsupported, and vice
 versa.
 

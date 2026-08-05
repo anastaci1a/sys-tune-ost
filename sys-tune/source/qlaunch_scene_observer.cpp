@@ -867,20 +867,21 @@ TuneQlaunchSceneObserverInfo GetInfo() {
     return info;
 }
 
-bool TryGetCurrentScene(u8* out_scene) {
-    if (!out_scene) {
-        return false;
-    }
-
+SceneSnapshot GetSceneSnapshot() {
     mutexLock(&g_info_mutex);
-    const bool has_scene = g_info.has_scene &&
-        g_info.status != TuneQlaunchObserverStatus_Unavailable &&
-        g_info.status != TuneQlaunchObserverStatus_Failed;
-    if (has_scene) {
-        *out_scene = g_info.current_scene;
+    SceneSnapshot snapshot{
+        .availability = SceneAvailability::Waiting,
+        .scene = g_info.current_scene,
+        .update_count = g_info.scene_update_count,
+    };
+    if (g_info.status == TuneQlaunchObserverStatus_Unavailable ||
+        g_info.status == TuneQlaunchObserverStatus_Failed) {
+        snapshot.availability = SceneAvailability::Unavailable;
+    } else if (g_info.has_scene) {
+        snapshot.availability = SceneAvailability::Ready;
     }
     mutexUnlock(&g_info_mutex);
-    return has_scene;
+    return snapshot;
 }
 
 void ResetHistory() {

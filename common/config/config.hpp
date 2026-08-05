@@ -73,6 +73,10 @@ auto get_fade_in_ms() -> u32;
 void set_fade_in_ms(u32 value);
 auto get_fade_out_ms() -> u32;
 void set_fade_out_ms(u32 value);
+auto get_mid_song_fade_in_ms() -> u32;
+void set_mid_song_fade_in_ms(u32 value);
+auto get_mid_song_fade_out_ms() -> u32;
+void set_mid_song_fade_out_ms(u32 value);
 
 // When enabled, the Startup Sound pool also plays after system sleep.
 auto get_startup_on_wake() -> bool;

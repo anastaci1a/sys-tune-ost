@@ -360,6 +360,34 @@ void set_fade_out_ms(u32 value) {
     ini_putl("ost_manager", "fade_out_ms", std::min(value, 5000u), CONFIG_PATH);
 }
 
+auto get_mid_song_fade_in_ms() -> u32 {
+    // Preserve the previous all-purpose fade behavior on upgrade until the
+    // user explicitly chooses a separate mid-song value.
+    return std::clamp<long>(ini_getl(
+        "ost_manager", "mid_song_fade_in_ms", get_fade_in_ms(), CONFIG_PATH),
+        0, 5000);
+}
+
+void set_mid_song_fade_in_ms(u32 value) {
+    create_config_dir();
+    ini_putl(
+        "ost_manager", "mid_song_fade_in_ms", std::min(value, 5000u),
+        CONFIG_PATH);
+}
+
+auto get_mid_song_fade_out_ms() -> u32 {
+    return std::clamp<long>(ini_getl(
+        "ost_manager", "mid_song_fade_out_ms", get_fade_out_ms(), CONFIG_PATH),
+        0, 5000);
+}
+
+void set_mid_song_fade_out_ms(u32 value) {
+    create_config_dir();
+    ini_putl(
+        "ost_manager", "mid_song_fade_out_ms", std::min(value, 5000u),
+        CONFIG_PATH);
+}
+
 auto get_startup_on_wake() -> bool {
     return ini_getbool("ost_manager", "startup_on_wake", false, CONFIG_PATH);
 }
@@ -370,35 +398,51 @@ void set_startup_on_wake(bool value) {
 }
 
 void migrate_ost_config() {
-    if (ini_getl("ost_manager", "migration_version", 0, CONFIG_PATH) >= 1) {
+    const auto migration_version =
+        ini_getl("ost_manager", "migration_version", 0, CONFIG_PATH);
+    if (migration_version >= 2) {
         return;
     }
 
-    const auto migrate_track = [](u64 tid) {
-        if (get_ost_playlist_size(tid) != 0) {
-            return;
+    if (migration_version < 1) {
+        const auto migrate_track = [](u64 tid) {
+            if (get_ost_playlist_size(tid) != 0) {
+                return;
+            }
+
+            char path[applet_bgm::PathSizeMax]{};
+            if (get_applet_bgm_path(tid, path, sizeof(path))) {
+                append_ost_playlist_item(tid, path);
+            }
+        };
+
+        migrate_track(applet_bgm::QlaunchTitleId);
+        for (const auto& target : applet_bgm::Targets) {
+            migrate_track(target.title_id);
         }
 
-        char path[applet_bgm::PathSizeMax]{};
-        if (get_applet_bgm_path(tid, path, sizeof(path))) {
-            append_ost_playlist_item(tid, path);
-        }
-    };
-
-    migrate_track(applet_bgm::QlaunchTitleId);
-    for (const auto& target : applet_bgm::Targets) {
-        migrate_track(target.title_id);
-    }
-
-    if (get_ost_playlist_size(applet_bgm::StartupTitleId) == 0) {
-        char load_path[applet_bgm::PathSizeMax]{};
-        if (get_load_path(load_path, sizeof(load_path)) && sdmc::FileExists(load_path)) {
-            append_ost_playlist_item(applet_bgm::StartupTitleId, load_path);
+        if (get_ost_playlist_size(applet_bgm::StartupTitleId) == 0) {
+            char load_path[applet_bgm::PathSizeMax]{};
+            if (get_load_path(load_path, sizeof(load_path)) &&
+                sdmc::FileExists(load_path)) {
+                append_ost_playlist_item(
+                    applet_bgm::StartupTitleId, load_path);
+            }
         }
     }
 
     create_config_dir();
-    ini_putl("ost_manager", "migration_version", 1, CONFIG_PATH);
+    if (!ini_haskey("ost_manager", "mid_song_fade_in_ms", CONFIG_PATH)) {
+        ini_putl(
+            "ost_manager", "mid_song_fade_in_ms", get_fade_in_ms(),
+            CONFIG_PATH);
+    }
+    if (!ini_haskey("ost_manager", "mid_song_fade_out_ms", CONFIG_PATH)) {
+        ini_putl(
+            "ost_manager", "mid_song_fade_out_ms", get_fade_out_ms(),
+            CONFIG_PATH);
+    }
+    ini_putl("ost_manager", "migration_version", 2, CONFIG_PATH);
 }
 
 }

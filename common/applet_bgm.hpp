@@ -32,17 +32,17 @@ constexpr std::array Targets = {
     Target{0x0100000000001003ULL, "Controllers"},
     Target{0x0100000000001013ULL, "User Page"},
     Target{0x0100000000001009ULL, "Mii Editor"},
+    Target{0x0100000000001007ULL, "User Select"},
+    Target{0x0100000000001004ULL, "Data Management"},
+    Target{0x0100000000001008ULL, "Software Keyboard"},
+    Target{0x010000000000100AULL, "Web Applet"},
+    Target{0x0100000000001006ULL, "Network Connection"},
+    Target{0x0100000000001011ULL, "Wi-Fi Login"},
+    Target{0x0100000000001010ULL, "Share / Login"},
+    Target{0x0100000000001001ULL, "Authentication"},
+    Target{0x010000000000100FULL, "Offline Manual"},
     Target{0x0100000000001002ULL, "Amiibo"},
     Target{0x010000000000100BULL, "Nintendo eShop"},
-    Target{0x0100000000001007ULL, "User Select"},
-    Target{0x0100000000001006ULL, "Network Connection"},
-    Target{0x010000000000100AULL, "Web Applet"},
-    Target{0x010000000000100FULL, "Offline Manual"},
-    Target{0x0100000000001010ULL, "Share / Login"},
-    Target{0x0100000000001011ULL, "Wi-Fi Login"},
-    Target{0x0100000000001008ULL, "Software Keyboard"},
-    Target{0x0100000000001001ULL, "Authentication"},
-    Target{0x0100000000001004ULL, "Data Management"},
     Target{0x0100000000001005ULL, "Error Dialog"},
 };
 
@@ -70,9 +70,9 @@ constexpr std::array DetectionTitleIds = {
 // qlaunch implements all three views in one process. The scene observer maps
 // its internal SystemAppletScene value to these independent soundtrack IDs.
 constexpr std::array QlaunchTargets = {
+    Target{LockStateId, "Lock Screen"},
     Target{QlaunchTitleId, "Home Menu"},
     Target{SettingsStateId, "System Settings"},
-    Target{LockStateId, "Lock Screen"},
 };
 
 }

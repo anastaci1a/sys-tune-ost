@@ -26,8 +26,12 @@ constexpr auto AUDIO_BUFFER_COUNT = 2;
 constexpr auto AUDIO_LATENCY_MS = 42;
 constexpr auto AUDIO_BUFFER_SIZE =
     AUDIO_FREQ / 1000 * AUDIO_LATENCY_MS * AUDIO_CHANNEL_COUNT;
+constexpr u8 PDM_POWER_STATE_TURNED_ON = 0;
+constexpr u8 PDM_POWER_STATE_TURNED_OFF = 1;
+constexpr u8 PDM_POWER_STATE_SLEEP_MODE_ON = 2;
 constexpr u8 PDM_POWER_STATE_SLEEP_MODE_OFF = 3;
 constexpr s32 PDM_EVENT_BATCH_SIZE = 16;
+constexpr u64 WAKE_SCENE_GRACE_NS = 250'000'000ULL;
 
 struct OstTrack {
     char path[applet_bgm::PathSizeMax]{};
@@ -133,6 +137,18 @@ enum class PlaybackEnd {
     Error,
 };
 
+enum class PowerTransition {
+    None,
+    Sleep,
+    Wake,
+};
+
+struct PowerTransitions {
+    PowerTransition last{PowerTransition::None};
+    bool saw_sleep{};
+    bool saw_wake{};
+};
+
 struct PlaybackResult {
     Result result{};
     PlaybackEnd end{PlaybackEnd::Error};
@@ -210,8 +226,9 @@ std::atomic_bool g_startup_active = false;
 std::atomic_bool g_startup_on_wake = false;
 std::atomic<u32> g_startup_generation = 0;
 std::atomic_bool g_applet_bgm_reload = true;
+std::atomic_bool g_discard_audio_buffers = false;
 
-std::atomic<u64> g_detected_state = applet_bgm::QlaunchTitleId;
+std::atomic<u64> g_detected_state = applet_bgm::SilentTitleId;
 std::atomic<u64> g_requested_state = applet_bgm::SilentTitleId;
 std::atomic<u32> g_transition_serial = 1;
 
@@ -220,6 +237,8 @@ std::atomic<u64> g_force_reload_state = applet_bgm::SilentTitleId;
 
 std::atomic<u32> g_fade_in_ms = 500;
 std::atomic<u32> g_fade_out_ms = 500;
+std::atomic<u32> g_mid_song_fade_in_ms = 500;
+std::atomic<u32> g_mid_song_fade_out_ms = 500;
 
 float g_title_volume = 1.f;
 float g_default_title_volume = 1.f;
@@ -243,19 +262,30 @@ void RequestState(u64 state) {
     }
 }
 
-u64 ResolveQlaunchState(u64 process_state) {
+void RequestStateAndDiscardAudio(u64 state) {
+    g_discard_audio_buffers.store(true, std::memory_order_release);
+    g_requested_state.store(state, std::memory_order_release);
+    SignalTransition();
+}
+
+u64 ResolveQlaunchState(
+    u64 process_state, const qlaunch_scene::SceneSnapshot& snapshot) {
     if (process_state != applet_bgm::QlaunchTitleId) {
         return process_state;
     }
 
-    u8 scene = 0;
-    if (!qlaunch_scene::TryGetCurrentScene(&scene)) {
-        // Preserve the stable behavior if the best-effort observer is not yet
-        // receiving events (or cannot run on a future firmware).
+    if (snapshot.availability ==
+        qlaunch_scene::SceneAvailability::Unavailable) {
+        // Preserve stable-build behavior when the best-effort observer cannot
+        // run. Waiting for the first report is different: silence avoids
+        // falsely playing Home during the boot logo or a wake transition.
         return applet_bgm::QlaunchTitleId;
     }
+    if (snapshot.availability != qlaunch_scene::SceneAvailability::Ready) {
+        return applet_bgm::SilentTitleId;
+    }
 
-    switch (scene) {
+    switch (snapshot.scene) {
         case applet_bgm::QlaunchSceneHome:
             return applet_bgm::QlaunchTitleId;
         case applet_bgm::QlaunchSceneSettings:
@@ -389,10 +419,14 @@ void CompleteStartup(u32 generation) {
         : applet_bgm::SilentTitleId);
 }
 
-void BeginStartup() {
+void BeginStartup(bool discard_audio = false) {
     std::scoped_lock lk(g_startup_mutex);
     g_startup_generation.fetch_add(1, std::memory_order_acq_rel);
     g_startup_active = true;
+
+    if (discard_audio) {
+        g_discard_audio_buffers.store(true, std::memory_order_release);
+    }
 
     // A wake always chooses a fresh random entry, including when the previous
     // Startup sound was still active as the console entered sleep.
@@ -404,18 +438,22 @@ void BeginStartup() {
     SignalTransition();
 }
 
-void CancelStartupAndRequest(u64 state) {
+void CancelStartupAndRequest(u64 state, bool discard_audio = false) {
     std::scoped_lock lk(g_startup_mutex);
     if (g_startup_active.exchange(false)) {
         // Invalidate completion from any playback that was already in flight.
         g_startup_generation.fetch_add(1, std::memory_order_acq_rel);
     }
-    RequestState(state);
+    if (discard_audio) {
+        RequestStateAndDiscardAudio(state);
+    } else {
+        RequestState(state);
+    }
 }
 
-Result ConsumeSleepWakeEvent(bool* woke) {
+Result ConsumePowerTransitions(PowerTransitions* transitions) {
     static s32 last_end_entry_index = -1;
-    *woke = false;
+    *transitions = {};
 
     s32 total_entries = 0;
     s32 start_entry_index = 0;
@@ -465,10 +503,19 @@ Result ConsumeSleepWakeEvent(bool* woke) {
 
         for (s32 i = 0; i < count; i++) {
             const auto& event = events[i];
-            if (event.play_event_type == PdmPlayEventType_PowerStateChange &&
-                event.event_data.power_state_change.value ==
-                    PDM_POWER_STATE_SLEEP_MODE_OFF) {
-                *woke = true;
+            if (event.play_event_type != PdmPlayEventType_PowerStateChange) {
+                continue;
+            }
+
+            const auto state = event.event_data.power_state_change.value;
+            if (state == PDM_POWER_STATE_TURNED_OFF ||
+                state == PDM_POWER_STATE_SLEEP_MODE_ON) {
+                transitions->last = PowerTransition::Sleep;
+                transitions->saw_sleep = true;
+            } else if (state == PDM_POWER_STATE_TURNED_ON ||
+                       state == PDM_POWER_STATE_SLEEP_MODE_OFF) {
+                transitions->last = PowerTransition::Wake;
+                transitions->saw_wake = true;
             }
         }
 
@@ -596,6 +643,7 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
             resume_frame = 0;
         }
     }
+    const bool resuming_mid_song = reused_source || resume_frame != 0;
 
     AudioOutState state;
     Result rc = audoutGetAudioOutState(&state);
@@ -625,10 +673,18 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
         const bool interrupted = g_output_paused ||
             g_transition_serial.load(std::memory_order_acquire) != play_serial;
         if (interrupted && !transition_fade) {
-            transition_fade = true;
             interrupted_resume_frame = source->Tell().first;
+            // Sleep/wake ownership changes must discard already queued audio;
+            // waiting for a fade here can let stale Home audio escape on wake.
+            if (g_discard_audio_buffers.load(std::memory_order_acquire)) {
+                outcome = {0, PlaybackEnd::Interrupted, interrupted_resume_frame};
+                break;
+            }
+
+            transition_fade = true;
             transition_total_frames =
-                static_cast<u64>(AUDIO_FREQ) * g_fade_out_ms.load() / 1000;
+                static_cast<u64>(AUDIO_FREQ) *
+                g_mid_song_fade_out_ms.load() / 1000;
             transition_remaining_frames = transition_total_frames;
             if (transition_total_frames == 0) {
                 outcome = {0, PlaybackEnd::Interrupted, interrupted_resume_frame};
@@ -672,17 +728,25 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
         const auto decoded_bytes = source->Resample(
             static_cast<u8*>(buffer->buffer), buffer_size);
         const auto after = source->Tell();
-        if (decoded_bytes <= 0) {
-            outcome = source->Done()
-                ? PlaybackResult{0, PlaybackEnd::Natural, after.first}
-                : PlaybackResult{tune::Generic, PlaybackEnd::Error, after.first};
+        if (decoded_bytes < 0) {
+            outcome = {tune::Generic, PlaybackEnd::Error, after.first};
+            break;
+        }
+        if (decoded_bytes == 0) {
+            // Decoder exhaustion is a normal track boundary. Some decoders do
+            // not update Done() until this final read, so consulting it here
+            // incorrectly invalidated every track after its first playback.
+            outcome = {0, PlaybackEnd::Natural, after.first};
             break;
         }
 
         const auto output_frames = static_cast<u64>(decoded_bytes) /
             (sizeof(s16) * AUDIO_CHANNEL_COUNT);
+        const auto fade_in_ms = resuming_mid_song
+            ? g_mid_song_fade_in_ms.load()
+            : g_fade_in_ms.load();
         const auto fade_in_frames =
-            static_cast<u64>(AUDIO_FREQ) * g_fade_in_ms.load() / 1000;
+            static_cast<u64>(AUDIO_FREQ) * fade_in_ms / 1000;
         const float fade_in_start = fade_in_frames == 0
             ? 1.f
             : std::min(1.f, static_cast<float>(segment_output_frames) /
@@ -792,10 +856,9 @@ Result Initialize() {
     g_master_enabled = config::get_applet_bgm_enabled();
     if (g_master_enabled &&
         config::get_ost_playlist_size(applet_bgm::StartupTitleId) != 0) {
-        g_startup_active = true;
-        g_requested_state = applet_bgm::StartupTitleId;
-    } else if (g_master_enabled) {
-        g_requested_state = applet_bgm::QlaunchTitleId;
+        // Claim playback before the process/scene detector starts. Falling
+        // back to Home here leaked Home audio into the boot-logo sequence.
+        BeginStartup();
     }
 
     // Best-effort HOME focus detection. pdm:qry has very few sessions;
@@ -832,6 +895,13 @@ void TuneThreadFunc(void*) {
     PlaybackSourceCache home_source_cache;
 
     while (g_should_run) {
+        if (g_discard_audio_buffers.exchange(false, std::memory_order_acq_rel)) {
+            bool flushed = false;
+            // Best effort: this is supported on every firmware targeted by
+            // this fork and removes buffers queued by the pre-sleep owner.
+            audoutFlushAudioOutBuffers(&flushed);
+        }
+
         u32 play_serial = 0;
         do {
             play_serial = g_transition_serial.load(std::memory_order_acquire);
@@ -959,6 +1029,13 @@ void GpioThreadFunc(void* ptr) {
 void PmdmntThreadFunc(void*) {
     bool enabled = config::get_applet_bgm_enabled();
     u64 current_target = UINT64_MAX;
+    bool sleeping = false;
+    // The initial power-on event belongs to cold boot, whose Startup Sound is
+    // already claimed in Initialize(). A real sleep event unlatches wake.
+    bool wake_latched = true;
+    bool wake_scene_gate = false;
+    u32 wake_scene_update_count = 0;
+    u64 wake_scene_gate_tick = 0;
 
     while (g_should_run) {
         const bool reload = g_applet_bgm_reload.exchange(false);
@@ -988,20 +1065,76 @@ void PmdmntThreadFunc(void*) {
         u64 process_target = applet_bgm::SilentTitleId;
         pm::getAppletBgmTarget(
             &target_pid, &process_target, application_out_of_focus);
-        const auto target = ResolveQlaunchState(process_target);
+        const auto scene_snapshot = qlaunch_scene::GetSceneSnapshot();
+
+        PowerTransitions power_transitions{};
+        if (g_pdmqry_available) {
+            ConsumePowerTransitions(&power_transitions);
+        }
+
+        if (power_transitions.last == PowerTransition::Sleep) {
+            sleeping = true;
+            wake_latched = false;
+            wake_scene_gate = false;
+            current_target = applet_bgm::SilentTitleId;
+            // Display-off and system-sleep are explicit silent states. Flush
+            // queued buffers as well as changing ownership, otherwise a stale
+            // Home buffer can play immediately after resume.
+            CancelStartupAndRequest(applet_bgm::SilentTitleId, true);
+        } else if (power_transitions.last == PowerTransition::Wake) {
+            const bool new_wake = !wake_latched || power_transitions.saw_sleep;
+            sleeping = false;
+            if (new_wake) {
+                wake_latched = true;
+                wake_scene_gate = true;
+                wake_scene_update_count = scene_snapshot.update_count;
+                wake_scene_gate_tick = armGetSystemTick();
+                current_target = applet_bgm::SilentTitleId;
+
+                if (enabled && g_startup_on_wake &&
+                    config::get_ost_playlist_size(
+                        applet_bgm::StartupTitleId) != 0) {
+                    BeginStartup(true);
+                } else {
+                    CancelStartupAndRequest(
+                        applet_bgm::SilentTitleId, true);
+                }
+            }
+        }
+
+        u64 target = sleeping
+            ? applet_bgm::SilentTitleId
+            : ResolveQlaunchState(process_target, scene_snapshot);
+
+        if (wake_scene_gate) {
+            if (process_target != applet_bgm::QlaunchTitleId ||
+                scene_snapshot.availability ==
+                    qlaunch_scene::SceneAvailability::Unavailable) {
+                wake_scene_gate = false;
+            } else {
+                const bool fresh_scene =
+                    scene_snapshot.availability ==
+                        qlaunch_scene::SceneAvailability::Ready &&
+                    (scene_snapshot.update_count != wake_scene_update_count ||
+                     scene_snapshot.scene != applet_bgm::QlaunchSceneHome);
+                const bool grace_elapsed = armTicksToNs(
+                    armGetSystemTick() - wake_scene_gate_tick) >=
+                    WAKE_SCENE_GRACE_NS;
+                if (fresh_scene || grace_elapsed) {
+                    wake_scene_gate = false;
+                } else {
+                    // Do not trust a retained pre-sleep Home scene during the
+                    // short interval before qlaunch reports Lock/Home anew.
+                    target = applet_bgm::SilentTitleId;
+                }
+            }
+        }
         g_detected_state = target;
 
-        bool woke_from_sleep = false;
-        if (g_pdmqry_available) {
-            ConsumeSleepWakeEvent(&woke_from_sleep);
-        }
-        if (enabled && woke_from_sleep && g_startup_on_wake &&
-            config::get_ost_playlist_size(applet_bgm::StartupTitleId) != 0) {
-            BeginStartup();
-        }
-
         if (enabled) {
-            if (g_startup_active) {
+            if (sleeping) {
+                current_target = applet_bgm::SilentTitleId;
+            } else if (g_startup_active) {
                 // Startup can span the boot/wake Lock Screen, but opening
                 // Settings, another applet, or a game ends it immediately.
                 if (!StartupMayContinue(process_target, target)) {
@@ -1323,6 +1456,8 @@ void ReloadOstState(u64 title_id) {
 void ReloadOstMisc() {
     g_fade_in_ms = config::get_fade_in_ms();
     g_fade_out_ms = config::get_fade_out_ms();
+    g_mid_song_fade_in_ms = config::get_mid_song_fade_in_ms();
+    g_mid_song_fade_out_ms = config::get_mid_song_fade_out_ms();
     g_startup_on_wake = config::get_startup_on_wake();
 }
 

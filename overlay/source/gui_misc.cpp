@@ -72,14 +72,25 @@ tsl::elm::Element* MiscGui::createUI() {
     auto frame = new SysTuneOverlayFrame();
     auto list = new tsl::elm::List();
 
-    list->addItem(new tsl::elm::CategoryHeader("Transitions"));
+    list->addItem(new tsl::elm::CategoryHeader("Track Boundaries"));
     list->addItem(new ElmTextBlock(
-        "Fade-out then fade-in; tracks do not overlap.\n"
-        "Short fades use finer slider steps."));
+        "Used at the beginning and natural end of a track.\n"
+        "Tracks do not overlap."));
     list->addItem(MakeDurationSlider(
         "Fade In", config::get_fade_in_ms(), config::set_fade_in_ms));
     list->addItem(MakeDurationSlider(
         "Fade Out", config::get_fade_out_ms(), config::set_fade_out_ms));
+
+    list->addItem(new tsl::elm::CategoryHeader("Mid-Song Transitions"));
+    list->addItem(new ElmTextBlock(
+        "Used when playback is interrupted or resumed,\n"
+        "including Home Menu pause and resume."));
+    list->addItem(MakeDurationSlider(
+        "Mid-Song Fade In", config::get_mid_song_fade_in_ms(),
+        config::set_mid_song_fade_in_ms));
+    list->addItem(MakeDurationSlider(
+        "Mid-Song Fade Out", config::get_mid_song_fade_out_ms(),
+        config::set_mid_song_fade_out_ms));
 
     list->addItem(new tsl::elm::CategoryHeader("Output"));
     constexpr size_t VolumeSteps = 21;
