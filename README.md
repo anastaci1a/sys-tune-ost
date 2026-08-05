@@ -14,11 +14,18 @@ The master **System UI OST** switch is disabled by default. When enabled:
 - Home retains its queue, track, and playback position while interrupted, then
   fades back in and resumes;
 - each normal playlist has persistent shuffle and repeat Off / One / All modes;
-- Startup Sound chooses one random entry once when the sysmodule starts at boot,
-  then yields when it finishes or when anything other than Home opens; and
+- Startup Sound chooses one random entry once when the sysmodule starts at cold
+  boot, with an optional **Play after waking** toggle to choose a fresh random
+  entry after every system-sleep wake; it yields when it finishes or when
+  anything other than Home opens; and
 - global 0–5 second fade-in and fade-out settings smooth track, applet, pause,
   Startup, and stop transitions. These are sequential fades, not overlapping
   crossfades.
+
+Wake replay keys off Horizon's actual
+[`sleep mode off` power-state event](https://switchbrew.org/wiki/Shared_Database_services#PlayEvent).
+A Power-button sleep, the Sleep Mode menu, and auto-sleep therefore count; a
+display-only on/off transition does not.
 
 The overlay's top playback panel always controls the currently active UI-state
 playlist. Previous/next, seek, play/pause, repeat, and shuffle change ownership
@@ -54,7 +61,9 @@ resumes only after the foreground application closes.
 ## Configuration and migration
 
 Configuration is stored in `/config/sys-tune/config.ini`. Playlist contents,
-order, shuffle, repeat, fades, volume, and the master switch survive reboot.
+order, shuffle, repeat, Startup wake mode, fades, volume, and the master switch
+survive reboot. **Play after waking** is off by default, preserving cold-boot-only
+Startup behavior.
 
 On first launch this build automatically imports:
 
@@ -81,7 +90,7 @@ supported file in the current folder. In a playlist, use **Y** to remove and
 **ZL/ZR** to move an entry. Fade and output-volume controls live under
 **Misc Options**.
 
-The overlay and sysmodule use API version 6. Install both from the same build;
+The overlay and sysmodule use API version 7. Install both from the same build;
 an older overlay will correctly report the sysmodule as unsupported, and vice
 versa.
 

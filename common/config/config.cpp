@@ -275,6 +275,15 @@ void set_fade_out_ms(u32 value) {
     ini_putl("ost_manager", "fade_out_ms", std::min(value, 5000u), CONFIG_PATH);
 }
 
+auto get_startup_on_wake() -> bool {
+    return ini_getbool("ost_manager", "startup_on_wake", false, CONFIG_PATH);
+}
+
+void set_startup_on_wake(bool value) {
+    create_config_dir();
+    ini_putl("ost_manager", "startup_on_wake", value, CONFIG_PATH);
+}
+
 void migrate_ost_config() {
     if (ini_getl("ost_manager", "migration_version", 0, CONFIG_PATH) >= 1) {
         return;

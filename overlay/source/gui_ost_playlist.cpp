@@ -39,8 +39,19 @@ void OstPlaylistGui::populate() {
     m_list->addItem(new tsl::elm::CategoryHeader(m_name));
 
     if (m_startup) {
+        auto startup_on_wake = new tsl::elm::ToggleListItem(
+            "Play after waking", config::get_startup_on_wake(), "On", "Off");
+        startup_on_wake->setStateChangedListener([](bool value) {
+            config::set_startup_on_wake(value);
+            tuneReloadOstMisc();
+        });
+        m_list->addItem(startup_on_wake);
         m_list->addItem(new tsl::elm::CategoryHeader(
-            "One sound is chosen randomly per boot", true));
+            "Off: cold boot only", true));
+        m_list->addItem(new tsl::elm::CategoryHeader(
+            "On: cold boot + every wake from sleep", true));
+        m_list->addItem(new tsl::elm::CategoryHeader(
+            "One sound is chosen randomly each time", true));
         m_list->addItem(new tsl::elm::CategoryHeader(
             "HOME may begin when that sound finishes", true));
         m_list->addItem(new tsl::elm::CategoryHeader(

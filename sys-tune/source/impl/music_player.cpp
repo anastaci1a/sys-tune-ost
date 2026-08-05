@@ -25,6 +25,8 @@ constexpr auto AUDIO_BUFFER_COUNT = 2;
 constexpr auto AUDIO_LATENCY_MS = 42;
 constexpr auto AUDIO_BUFFER_SIZE =
     AUDIO_FREQ / 1000 * AUDIO_LATENCY_MS * AUDIO_CHANNEL_COUNT;
+constexpr u8 PDM_POWER_STATE_SLEEP_MODE_OFF = 3;
+constexpr s32 PDM_EVENT_BATCH_SIZE = 16;
 
 struct OstTrack {
     char path[applet_bgm::PathSizeMax]{};
@@ -136,6 +138,7 @@ struct PlaybackResult {
 };
 
 LockableMutex g_mutex;
+LockableMutex g_startup_mutex;
 
 OstSession g_home_session;
 OstSession g_applet_session;
@@ -154,6 +157,8 @@ std::atomic_bool g_output_paused = false;
 std::atomic_bool g_should_run = true;
 std::atomic_bool g_master_enabled = false;
 std::atomic_bool g_startup_active = false;
+std::atomic_bool g_startup_on_wake = false;
+std::atomic<u32> g_startup_generation = 0;
 std::atomic_bool g_applet_bgm_reload = true;
 
 std::atomic<u64> g_detected_state = applet_bgm::QlaunchTitleId;
@@ -279,14 +284,106 @@ void ApplyPendingState() {
     }
 }
 
-void CompleteStartup() {
-    if (!g_startup_active.exchange(false)) {
+void CompleteStartup(u32 generation) {
+    std::scoped_lock lk(g_startup_mutex);
+    if (g_startup_generation.load(std::memory_order_acquire) != generation ||
+        !g_startup_active.exchange(false)) {
         return;
     }
 
     RequestState(g_master_enabled
         ? g_detected_state.load(std::memory_order_acquire)
         : applet_bgm::SilentTitleId);
+}
+
+void BeginStartup() {
+    std::scoped_lock lk(g_startup_mutex);
+    g_startup_generation.fetch_add(1, std::memory_order_acq_rel);
+    g_startup_active = true;
+
+    // A wake always chooses a fresh random entry, including when the previous
+    // Startup sound was still active as the console entered sleep.
+    g_force_reload_state.store(
+        applet_bgm::StartupTitleId, std::memory_order_release);
+    g_force_reload_pending.store(true, std::memory_order_release);
+    g_requested_state.store(
+        applet_bgm::StartupTitleId, std::memory_order_release);
+    SignalTransition();
+}
+
+void CancelStartupAndRequest(u64 state) {
+    std::scoped_lock lk(g_startup_mutex);
+    if (g_startup_active.exchange(false)) {
+        // Invalidate completion from any playback that was already in flight.
+        g_startup_generation.fetch_add(1, std::memory_order_acq_rel);
+    }
+    RequestState(state);
+}
+
+Result ConsumeSleepWakeEvent(bool* woke) {
+    static s32 last_end_entry_index = -1;
+    *woke = false;
+
+    s32 total_entries = 0;
+    s32 start_entry_index = 0;
+    s32 end_entry_index = 0;
+    Result rc = pdmqryGetAvailablePlayEventRange(
+        &total_entries, &start_entry_index, &end_entry_index);
+    if (R_FAILED(rc)) {
+        return rc;
+    }
+
+    // Ignore historical wake events when the sysmodule first opens pdm:qry.
+    if (last_end_entry_index < 0 || total_entries <= 0) {
+        last_end_entry_index = end_entry_index;
+        return 0;
+    }
+
+    if (end_entry_index < last_end_entry_index) {
+        // The log was cleared or its index wrapped. Re-baseline instead of
+        // replaying an old wake entry as though it had just happened.
+        last_end_entry_index = end_entry_index;
+        return 0;
+    }
+    if (end_entry_index == last_end_entry_index) {
+        return 0;
+    }
+
+    s32 next_entry_index = std::max(
+        start_entry_index, last_end_entry_index + 1);
+    if (next_entry_index > end_entry_index) {
+        last_end_entry_index = end_entry_index;
+        return 0;
+    }
+
+    while (next_entry_index <= end_entry_index) {
+        PdmPlayEvent events[PDM_EVENT_BATCH_SIZE]{};
+        const auto remaining = end_entry_index - next_entry_index + 1;
+        const auto requested = std::min(PDM_EVENT_BATCH_SIZE, remaining);
+        s32 count = 0;
+        rc = pdmqryQueryPlayEvent(
+            next_entry_index, events, requested, &count);
+        if (R_FAILED(rc)) {
+            return rc;
+        }
+        if (count <= 0) {
+            return 0;
+        }
+
+        for (s32 i = 0; i < count; i++) {
+            const auto& event = events[i];
+            if (event.play_event_type == PdmPlayEventType_PowerStateChange &&
+                event.event_data.power_state_change.value ==
+                    PDM_POWER_STATE_SLEEP_MODE_OFF) {
+                *woke = true;
+            }
+        }
+
+        next_entry_index += count;
+        last_end_entry_index = next_entry_index - 1;
+    }
+
+    return 0;
 }
 
 Result IsApplicationOutOfFocus(u64 title_id, bool* out_of_focus) {
@@ -632,6 +729,7 @@ void TuneThreadFunc(void*) {
         u32 resume_frame = 0;
         u64 playing_state = applet_bgm::SilentTitleId;
         u32 playing_position = 0;
+        u32 playing_startup_generation = 0;
         {
             std::scoped_lock lk(g_mutex);
             if (!g_output_paused && g_active_session && !g_active_session->paused) {
@@ -641,6 +739,10 @@ void TuneThreadFunc(void*) {
                     resume_frame = g_active_session->resume_frame;
                     playing_state = g_active_state;
                     playing_position = g_active_session->position;
+                    if (playing_state == applet_bgm::StartupTitleId) {
+                        playing_startup_generation =
+                            g_startup_generation.load(std::memory_order_acquire);
+                    }
                     std::snprintf(g_playing_path, sizeof(g_playing_path), "%s", play_path);
                     g_status = PlayerStatus::Playing;
                 }
@@ -650,14 +752,19 @@ void TuneThreadFunc(void*) {
         if (play_path[0] == '\0') {
             g_status = PlayerStatus::FetchNext;
             bool startup_exhausted = false;
+            u32 startup_generation = 0;
             {
                 std::scoped_lock lk(g_mutex);
                 startup_exhausted =
                     g_active_state == applet_bgm::StartupTitleId &&
                     (!g_active_session || g_active_session->Current() == nullptr);
+                if (startup_exhausted) {
+                    startup_generation =
+                        g_startup_generation.load(std::memory_order_acquire);
+                }
             }
             if (startup_exhausted) {
-                CompleteStartup();
+                CompleteStartup(startup_generation);
             }
             svcSleepThread(50'000'000ULL);
             continue;
@@ -693,7 +800,7 @@ void TuneThreadFunc(void*) {
         }
 
         if (startup_finished) {
-            CompleteStartup();
+            CompleteStartup(playing_startup_generation);
         }
     }
 
@@ -738,8 +845,7 @@ void PmdmntThreadFunc(void*) {
             g_master_enabled = enabled;
             current_target = UINT64_MAX;
             if (!enabled) {
-                g_startup_active = false;
-                RequestState(applet_bgm::SilentTitleId);
+                CancelStartupAndRequest(applet_bgm::SilentTitleId);
             }
         }
 
@@ -761,13 +867,23 @@ void PmdmntThreadFunc(void*) {
         pm::getAppletBgmTarget(&target_pid, &target, application_out_of_focus);
         g_detected_state = target;
 
-        if (enabled && target != current_target) {
-            if (g_startup_active && target == applet_bgm::QlaunchTitleId) {
-                // Startup is allowed to finish while HOME remains in front.
-            } else {
-                if (g_startup_active) {
-                    g_startup_active = false;
+        bool woke_from_sleep = false;
+        if (g_pdmqry_available) {
+            ConsumeSleepWakeEvent(&woke_from_sleep);
+        }
+        if (enabled && woke_from_sleep && g_startup_on_wake &&
+            config::get_ost_playlist_size(applet_bgm::StartupTitleId) != 0) {
+            BeginStartup();
+        }
+
+        if (enabled) {
+            if (g_startup_active) {
+                // Startup is allowed to finish only while HOME/qlaunch remains
+                // in front, even when the same game or applet spans a wake.
+                if (target != applet_bgm::QlaunchTitleId) {
+                    CancelStartupAndRequest(target);
                 }
+            } else if (target != current_target) {
                 RequestState(target);
             }
             current_target = target;
@@ -1083,6 +1199,7 @@ void ReloadOstState(u64 title_id) {
 void ReloadOstMisc() {
     g_fade_in_ms = config::get_fade_in_ms();
     g_fade_out_ms = config::get_fade_out_ms();
+    g_startup_on_wake = config::get_startup_on_wake();
 }
 
 } // namespace tune::impl

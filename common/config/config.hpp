@@ -47,7 +47,7 @@ auto get_applet_bgm_path(u64 tid, char* out, int max_len) -> int;
 void set_applet_bgm_path(u64 tid, const char* path);
 
 // Persistent playlist and playback settings for a UI state. StartupTitleId is
-// the special random, one-shot boot sound pool.
+// the special random, one-shot boot/wake sound pool.
 auto get_ost_playlist_size(u64 tid) -> u32;
 auto get_ost_playlist_item(u64 tid, u32 index, char* out, int max_len) -> int;
 auto append_ost_playlist_item(u64 tid, const char* path) -> bool;
@@ -64,6 +64,10 @@ auto get_fade_in_ms() -> u32;
 void set_fade_in_ms(u32 value);
 auto get_fade_out_ms() -> u32;
 void set_fade_out_ms(u32 value);
+
+// When enabled, the Startup Sound pool also plays after system sleep.
+auto get_startup_on_wake() -> bool;
+void set_startup_on_wake(bool value);
 
 // Imports settings created by the first Applet BGM build exactly once.
 void migrate_ost_config();
