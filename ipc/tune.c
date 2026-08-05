@@ -154,6 +154,11 @@ Result tuneGetActiveOstState(u64* title_id) {
     return serviceDispatchOut(&g_tune, TuneIpcCmd_GetActiveOstState, *title_id);
 }
 
+Result tuneGetTransitionDiagnostics(TuneTransitionDiagnostics* diagnostics) {
+    return serviceDispatchOut(
+        &g_tune, TuneIpcCmd_GetTransitionDiagnostics, *diagnostics);
+}
+
 Result tuneQuit() {
     return serviceDispatch(&g_tune, TuneIpcCmd_QuitServer);
 }

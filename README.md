@@ -98,7 +98,12 @@ supported file in the current folder. In a playlist, use **Y** to remove and
 **ZL/ZR** to move an entry. Fade and output-volume controls live under
 **Misc Options**.
 
-The overlay and sysmodule use API version 7. Install both from the same build;
+Misc Options also records read-only timings for the most recent transition
+back to HOME: its prior state, fade/activation time, player scheduling, source
+preparation, first audio buffer, and whether the retained HOME decoder was
+reused. These counters do not write to the SD card or alter playback behavior.
+
+The overlay and sysmodule use API version 8. Install both from the same build;
 an older overlay will correctly report the sysmodule as unsupported, and vice
 versa.
 

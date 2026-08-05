@@ -147,6 +147,10 @@ namespace tune {
                 case TuneIpcCmd_GetActiveOstState:
                     GET_SINGLE(u64, impl::GetActiveOstState);
 
+                case TuneIpcCmd_GetTransitionDiagnostics:
+                    GET_SINGLE(TuneTransitionDiagnostics,
+                               impl::GetTransitionDiagnostics);
+
                 case TuneIpcCmd_QuitServer:
                     running = false;
                     return 0;

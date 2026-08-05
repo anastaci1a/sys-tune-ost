@@ -34,6 +34,22 @@ typedef struct {
     u32 total_frames;
 } TuneCurrentStats;
 
+// Read-only timings for the most recent transition into HOME. Timestamps are
+// monotonic milliseconds since boot; consumers should display their deltas.
+typedef struct {
+    u64 sequence;
+    u64 from_state;
+    u64 requested_ms;
+    u64 active_ms;
+    u64 player_start_ms;
+    u64 source_ready_ms;
+    u64 first_buffer_ms;
+    u32 resume_frame;
+    u8 cache_attempted;
+    u8 cache_hit;
+    u8 reserved[2];
+} TuneTransitionDiagnostics;
+
 Result tuneInitialize();
 
 void tuneExit();
@@ -149,6 +165,7 @@ Result tuneReloadAppletBgm();
 Result tuneReloadOstState(u64 title_id);
 Result tuneReloadOstMisc();
 Result tuneGetActiveOstState(u64* title_id);
+Result tuneGetTransitionDiagnostics(TuneTransitionDiagnostics* diagnostics);
 
 Result tuneQuit();
 

@@ -34,6 +34,7 @@ enum TuneIpcCmd {
     TuneIpcCmd_ReloadOstState = 46,
     TuneIpcCmd_ReloadOstMisc = 47,
     TuneIpcCmd_GetActiveOstState = 48,
+    TuneIpcCmd_GetTransitionDiagnostics = 49,
 
     TuneIpcCmd_QuitServer = 50,
 

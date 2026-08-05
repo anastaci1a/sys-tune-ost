@@ -2,6 +2,7 @@
 
 #include "elm_overlayframe.hpp"
 #include "elm_volume.hpp"
+#include "applet_bgm.hpp"
 #include "config/config.hpp"
 #include "tune.h"
 
@@ -41,6 +42,31 @@ size_t NearestDuration(u32 value) {
         }
     }
     return best;
+}
+
+std::string StateText(u64 state) {
+    if (state == applet_bgm::SilentTitleId) {
+        return "Silence";
+    }
+    if (state == applet_bgm::QlaunchTitleId) {
+        return "Home";
+    }
+    if (state == applet_bgm::StartupTitleId) {
+        return "Startup";
+    }
+    for (const auto& target : applet_bgm::Targets) {
+        if (target.title_id == state) {
+            return target.name;
+        }
+    }
+    return "Unknown";
+}
+
+std::string TimingText(u64 begin_ms, u64 end_ms) {
+    if (begin_ms == 0 || end_ms == 0 || end_ms < begin_ms) {
+        return "Pending";
+    }
+    return std::to_string(end_ms - begin_ms) + " ms";
 }
 
 tsl::elm::ListItem* MakeDurationItem(
@@ -89,6 +115,43 @@ tsl::elm::Element* MiscGui::createUI() {
         tuneSetVolume(static_cast<float>(value) / static_cast<float>(VolumeSteps - 1));
     });
     list->addItem(volume_slider);
+
+    list->addItem(new tsl::elm::CategoryHeader("Last Home resume diagnostics"));
+    TuneTransitionDiagnostics diagnostics{};
+    if (R_FAILED(tuneGetTransitionDiagnostics(&diagnostics)) ||
+        diagnostics.sequence == 0) {
+        auto item = new tsl::elm::ListItem(
+            "No Home transition captured", "Return from an applet first");
+        item->setValue("Return from an applet first", true);
+        list->addItem(item);
+    } else {
+        list->addItem(new tsl::elm::ListItem(
+            "Requested from", StateText(diagnostics.from_state)));
+        list->addItem(new tsl::elm::ListItem(
+            "Fade + activation",
+            TimingText(diagnostics.requested_ms, diagnostics.active_ms)));
+        list->addItem(new tsl::elm::ListItem(
+            "Player scheduling",
+            TimingText(diagnostics.active_ms, diagnostics.player_start_ms)));
+        list->addItem(new tsl::elm::ListItem(
+            "Source preparation",
+            TimingText(diagnostics.player_start_ms,
+                       diagnostics.source_ready_ms)));
+        list->addItem(new tsl::elm::ListItem(
+            "First audio buffer",
+            TimingText(diagnostics.source_ready_ms,
+                       diagnostics.first_buffer_ms)));
+        list->addItem(new tsl::elm::ListItem(
+            "Total after request",
+            TimingText(diagnostics.requested_ms,
+                       diagnostics.first_buffer_ms)));
+
+        std::string cache_text = "Pending";
+        if (diagnostics.cache_attempted) {
+            cache_text = diagnostics.cache_hit ? "Retained" : "Reopened";
+        }
+        list->addItem(new tsl::elm::ListItem("Home decoder", cache_text));
+    }
 
     frame->setDescription("\uE0E1 Back   \uE07A/\uE079 or \uE0E0 Change");
     frame->setContent(list);
