@@ -142,6 +142,18 @@ Result tuneReloadAppletBgm() {
     return serviceDispatch(&g_tune, TuneIpcCmd_ReloadAppletBgm);
 }
 
+Result tuneReloadOstState(u64 title_id) {
+    return serviceDispatchIn(&g_tune, TuneIpcCmd_ReloadOstState, title_id);
+}
+
+Result tuneReloadOstMisc() {
+    return serviceDispatch(&g_tune, TuneIpcCmd_ReloadOstMisc);
+}
+
+Result tuneGetActiveOstState(u64* title_id) {
+    return serviceDispatchOut(&g_tune, TuneIpcCmd_GetActiveOstState, *title_id);
+}
+
 Result tuneQuit() {
     return serviceDispatch(&g_tune, TuneIpcCmd_QuitServer);
 }

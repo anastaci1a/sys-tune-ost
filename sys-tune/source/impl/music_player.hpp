@@ -36,6 +36,7 @@ namespace tune::impl {
     void SetRepeatMode(RepeatMode mode);
     ShuffleMode GetShuffleMode();
     void SetShuffleMode(ShuffleMode mode);
+    u64 GetActiveOstState();
 
     u32 GetPlaylistSize();
     u32 GetPlaylistItem(u32 index, char* buffer, size_t buffer_size);
@@ -49,5 +50,7 @@ namespace tune::impl {
     Result Remove(u32 index);
 
     void ReloadAppletBgm();
+    void ReloadOstState(u64 title_id);
+    void ReloadOstMisc();
 
 }

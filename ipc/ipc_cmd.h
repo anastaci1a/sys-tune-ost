@@ -31,6 +31,9 @@ enum TuneIpcCmd {
     TuneIpcCmd_Remove = 41,
 
     TuneIpcCmd_ReloadAppletBgm = 45,
+    TuneIpcCmd_ReloadOstState = 46,
+    TuneIpcCmd_ReloadOstMisc = 47,
+    TuneIpcCmd_GetActiveOstState = 48,
 
     TuneIpcCmd_QuitServer = 50,
 

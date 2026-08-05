@@ -1,7 +1,11 @@
 #include "elm_status_bar.hpp"
 
+#include "applet_bgm.hpp"
 #include "symbol.hpp"
-#include "config/config.hpp"
+
+#include <algorithm>
+#include <cstdio>
+#include <cstring>
 
 namespace {
 
@@ -10,7 +14,11 @@ namespace {
     char total_buffer[0x20] = "";
 
     void NullLastDot(char *str) {
-        char *end = str + strlen(str) - 1;
+        const auto length = std::strlen(str);
+        if (length == 0) {
+            return;
+        }
+        char *end = str + length - 1;
         while (str != end) {
             if (*end == '.') {
                 *end = '\0';
@@ -20,17 +28,25 @@ namespace {
         }
     }
 
+    std::string StateLabel(u64 title_id) {
+        if (title_id == applet_bgm::StartupTitleId) {
+            return "Startup Sound";
+        }
+        if (title_id == applet_bgm::QlaunchTitleId) {
+            return "Home / Settings / Lock Screen OST";
+        }
+        for (const auto& target : applet_bgm::Targets) {
+            if (target.title_id == title_id) {
+                return std::string(target.name) + " OST";
+            }
+        }
+        return "No active UI OST";
+    }
+
 }
 
 StatusBar::StatusBar() {
-    if (R_FAILED(tuneGetRepeatMode(&this->m_repeat)))
-        this->m_repeat = TuneRepeatMode_Off;
-    if (R_FAILED(tuneGetShuffleMode(&this->m_shuffle)))
-        this->m_shuffle = TuneShuffleMode_Off;
-    if (R_FAILED(tuneGetCurrentQueueItem(path_buffer, FS_MAX_PATH, &this->m_stats))) {
-        path_buffer[0] = '\0';
-        this->m_stats = {};
-    }
+    update();
 }
 
 tsl::elm::Element *StatusBar::requestFocus(tsl::elm::Element *oldFocus, tsl::FocusDirection direction) {
@@ -87,35 +103,53 @@ void StatusBar::draw(tsl::gfx::Renderer *renderer) {
     /* Progress */
     renderer->drawString(current_buffer, false, this->getX() + 15, this->getY() + CenterOfLine(1) + 8, 20, 0xffff);
 
-    /* Repeat indicator */
-    auto repeat_color = this->m_repeat ? tsl::style::color::ColorHighlight : tsl::style::color::ColorHeaderBar;
-    if (this->m_repeat == TuneRepeatMode_One) {
-        symbol::repeat::one::symbol.draw(GetRepeatX(), GetRepeatY(), renderer, repeat_color);
-    } else {
-        symbol::repeat::all::symbol.draw(GetRepeatX(), GetRepeatY(), renderer, repeat_color);
-    }
+    if (CanEditPlaybackPolicy()) {
+        /* Repeat indicator */
+        auto repeat_color = this->m_repeat ? tsl::style::color::ColorHighlight : tsl::style::color::ColorHeaderBar;
+        if (this->m_repeat == TuneRepeatMode_One) {
+            symbol::repeat::one::symbol.draw(GetRepeatX(), GetRepeatY(), renderer, repeat_color);
+        } else {
+            symbol::repeat::all::symbol.draw(GetRepeatX(), GetRepeatY(), renderer, repeat_color);
+        }
 
-    /* Shuffle indicator */
-    auto shuffle_color = this->m_shuffle ? tsl::style::color::ColorHighlight : tsl::style::color::ColorHeaderBar;
-    symbol::shuffle::symbol.draw(GetShuffleX(), GetShuffleY(), renderer, shuffle_color);
+        /* Shuffle indicator */
+        auto shuffle_color = this->m_shuffle ? tsl::style::color::ColorHighlight : tsl::style::color::ColorHeaderBar;
+        symbol::shuffle::symbol.draw(GetShuffleX(), GetShuffleY(), renderer, shuffle_color);
+    }
 
     /* Song length */
     renderer->drawString(total_buffer, false, this->getX() + this->getWidth() - 75, this->getY() + CenterOfLine(1) + 8, 20, 0xffff);
 
-    /* Backward button */
-    symbol::backward::symbol.draw(GetBackwardX(), GetBackwardY(), renderer, tsl::style::color::ColorText);
+    if (CanSeek()) {
+        /* Backward button */
+        symbol::backward::symbol.draw(GetBackwardX(), GetBackwardY(), renderer, tsl::style::color::ColorText);
 
-    /* Prev button */
-    symbol::prev::symbol.draw(GetPrevX(), GetPrevY(), renderer, tsl::style::color::ColorText);
+        /* Forward button */
+        symbol::forward::symbol.draw(GetForwardX(), GetForwardY(), renderer, tsl::style::color::ColorText);
+    }
+
+    if (CanNavigateQueue()) {
+        /* Prev button */
+        symbol::prev::symbol.draw(GetPrevX(), GetPrevY(), renderer, tsl::style::color::ColorText);
+
+        /* Next button */
+        symbol::next::symbol.draw(GetNextX(), GetNextY(), renderer, tsl::style::color::ColorText);
+    }
 
     /* Current playback glyph */
-    this->GetPlaybackSymbol().draw(GetPlayStateX(), GetPlayStateY(), renderer, tsl::style::color::ColorText);
+    const auto label_width = renderer->drawString(
+        this->m_state_label.c_str(), false, 0, 0, 16,
+        tsl::style::color::ColorTransparent).first;
+    renderer->drawString(
+        this->m_state_label.c_str(), false,
+        this->getX() + (this->getWidth() - label_width) / 2,
+        this->getY() + CenterOfLine(2) - 32, 16,
+        a(tsl::style::color::ColorDescription));
 
-    /* Next button */
-    symbol::next::symbol.draw(GetNextX(), GetNextY(), renderer, tsl::style::color::ColorText);
-
-    /* Forward button */
-    symbol::forward::symbol.draw(GetForwardX(), GetForwardY(), renderer, tsl::style::color::ColorText);
+    if (HasPlayableSession()) {
+        /* Current playback glyph */
+        this->GetPlaybackSymbol().draw(GetPlayStateX(), GetPlayStateY(), renderer, tsl::style::color::ColorText);
+    }
 }
 
 void StatusBar::layout(u16 parentX, u16 parentY, u16 parentWidth, u16 parentHeight) {
@@ -124,31 +158,31 @@ void StatusBar::layout(u16 parentX, u16 parentY, u16 parentWidth, u16 parentHeig
 
 bool StatusBar::onClick(u64 keys) {
     u8 handled = 0;
-    if (keys & HidNpadButton_A) {
+    if (HasPlayableSession() && (keys & HidNpadButton_A)) {
         this->CyclePlay();
         handled++;
     }
-    if (keys & HidNpadButton_X) {
+    if (CanEditPlaybackPolicy() && (keys & HidNpadButton_X)) {
         this->CycleRepeat();
         handled++;
     }
-    if (keys & HidNpadButton_Y) {
+    if (CanEditPlaybackPolicy() && (keys & HidNpadButton_Y)) {
         this->CycleShuffle();
         handled++;
     }
-    if (keys & HidNpadButton_Right) {
+    if (CanNavigateQueue() && (keys & HidNpadButton_Right)) {
         this->Next();
         handled++;
     }
-    if (keys & HidNpadButton_Left) {
+    if (CanNavigateQueue() && (keys & HidNpadButton_Left)) {
         this->Prev();
         handled++;
     }
-    if (keys & HidNpadButton_ZL) {
+    if (CanSeek() && (keys & HidNpadButton_ZL)) {
         this->Backward();
         handled++;
     }
-    if (keys & HidNpadButton_ZR) {
+    if (CanSeek() && (keys & HidNpadButton_ZR)) {
         this->Forward();
         handled++;
     }
@@ -166,31 +200,31 @@ bool StatusBar::onTouch(tsl::elm::TouchEvent event, s32 currX, s32 currY, s32 pr
 
         if (Element::getInputMode() == tsl::InputMode::Touch) {
             u16 handled = 0;
-            if (TOUCHED(Repeat)) {
+            if (CanEditPlaybackPolicy() && TOUCHED(Repeat)) {
                 this->CycleRepeat();
                 handled++;
             }
-            if (TOUCHED(Shuffle)) {
+            if (CanEditPlaybackPolicy() && TOUCHED(Shuffle)) {
                 this->CycleShuffle();
                 handled++;
             }
-            if (TOUCHED(PlayState)) {
+            if (HasPlayableSession() && TOUCHED(PlayState)) {
                 this->CyclePlay();
                 handled++;
             }
-            if (TOUCHED(Prev)) {
+            if (CanNavigateQueue() && TOUCHED(Prev)) {
                 this->Prev();
                 handled++;
             }
-            if (TOUCHED(Next)) {
+            if (CanNavigateQueue() && TOUCHED(Next)) {
                 this->Next();
                 handled++;
             }
-            if (TOUCHED(Forward)) {
+            if (CanSeek() && TOUCHED(Forward)) {
                 this->Forward();
                 handled++;
             }
-            if (TOUCHED(Backward)) {
+            if (CanSeek() && TOUCHED(Backward)) {
                 this->Backward();
                 handled++;
             }
@@ -208,21 +242,23 @@ bool StatusBar::onTouch(tsl::elm::TouchEvent event, s32 currX, s32 currY, s32 pr
 void StatusBar::update() {
     if (R_FAILED(tuneGetStatus(&this->m_playing)))
         this->m_playing = false;
+    tuneGetRepeatMode(&this->m_repeat);
+    tuneGetShuffleMode(&this->m_shuffle);
+    tuneGetPlaylistSize(&this->m_playlist_size);
+    if (R_SUCCEEDED(tuneGetActiveOstState(&this->m_active_state))) {
+        this->m_state_label = StateLabel(this->m_active_state);
+    }
 
     if (R_SUCCEEDED(tuneGetCurrentQueueItem(path_buffer, FS_MAX_PATH, &this->m_stats))) {
         /* Only show file name. Ignore path to file and extension. */
-        size_t length = std::strlen(path_buffer);
         NullLastDot(path_buffer);
-        for (size_t i = length; i >= 0; i--) {
-            if (path_buffer[i] == '/') {
-                if (this->m_current_track != path_buffer + i + 1) {
-                    this->m_current_track = path_buffer + i + 1;
-                    this->m_text_width = 0;
-                    this->m_scroll_offset = 0;
-                    this->m_counter = 0;
-                }
-                break;
-            }
+        const auto slash = std::strrchr(path_buffer, '/');
+        const auto name = slash ? slash + 1 : path_buffer;
+        if (this->m_current_track != name) {
+            this->m_current_track = name;
+            this->m_text_width = 0;
+            this->m_scroll_offset = 0;
+            this->m_counter = 0;
         }
     } else {
         this->m_current_track = "Stopped!";
@@ -233,23 +269,32 @@ void StatusBar::update() {
         this->m_counter = 0;
     }
     /* Progress text and bar */
-    u32 current = this->m_stats.current_frame / this->m_stats.sample_rate;
-    u32 total = this->m_stats.total_frames / this->m_stats.sample_rate;
-    this->m_percentage = std::clamp(float(this->m_stats.current_frame) / float(this->m_stats.total_frames), 0.0f, 1.0f);
+    u32 current = this->m_stats.sample_rate == 0
+        ? 0 : this->m_stats.current_frame / this->m_stats.sample_rate;
+    u32 total = this->m_stats.sample_rate == 0
+        ? 0 : this->m_stats.total_frames / this->m_stats.sample_rate;
+    this->m_percentage = this->m_stats.total_frames == 0
+        ? 0.f
+        : std::clamp(float(this->m_stats.current_frame) /
+                     float(this->m_stats.total_frames), 0.0f, 1.0f);
 
     std::snprintf(current_buffer, sizeof(current_buffer), "%d:%02d", current / 60, current % 60);
     std::snprintf(total_buffer, sizeof(total_buffer), "%d:%02d", total / 60, total % 60);
 }
 
 void StatusBar::CycleRepeat() {
+    if (!CanEditPlaybackPolicy()) {
+        return;
+    }
     this->m_repeat = static_cast<TuneRepeatMode>((this->m_repeat + 1) % TuneRepeatMode_Count);
-    config::set_repeat(this->m_repeat);
     tuneSetRepeatMode(this->m_repeat);
 }
 
 void StatusBar::CycleShuffle() {
+    if (!CanEditPlaybackPolicy()) {
+        return;
+    }
     this->m_shuffle = static_cast<TuneShuffleMode>((this->m_shuffle + 1) % TuneShuffleMode_Count);
-    config::set_shuffle(this->m_shuffle);
     tuneSetShuffleMode(this->m_shuffle);
 }
 
@@ -277,6 +322,25 @@ void StatusBar::Forward() {
 void StatusBar::Backward() {
     u32 next = std::max(s64(this->m_stats.current_frame) - s64(this->m_stats.total_frames / 10), s64(0));
     tuneSeek(next);
+}
+
+bool StatusBar::CanEditPlaybackPolicy() const {
+    return this->m_active_state != applet_bgm::SilentTitleId &&
+           this->m_active_state != applet_bgm::StartupTitleId;
+}
+
+bool StatusBar::HasPlayableSession() const {
+    return this->m_active_state != applet_bgm::SilentTitleId &&
+           this->m_playlist_size != 0;
+}
+
+bool StatusBar::CanNavigateQueue() const {
+    return HasPlayableSession() &&
+           this->m_active_state != applet_bgm::StartupTitleId;
+}
+
+bool StatusBar::CanSeek() const {
+    return HasPlayableSession() && this->m_stats.total_frames != 0;
 }
 
 const AlphaSymbol &StatusBar::GetPlaybackSymbol() {

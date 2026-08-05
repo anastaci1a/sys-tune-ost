@@ -1,7 +1,10 @@
 #include "config.hpp"
+#include "applet_bgm.hpp"
 #include "sdmc/sdmc.hpp"
 #include "minIni/minIni.h"
+#include <algorithm>
 #include <cstdio>
+#include <cstring>
 
 namespace config {
 
@@ -21,6 +24,14 @@ auto get_tid_str(u64 tid) -> const char* {
     static char buf[21]{};
     std::sprintf(buf, "%016lX", tid);
     return buf;
+}
+
+void get_ost_section(u64 tid, char* out, size_t out_size) {
+    std::snprintf(out, out_size, "ost_%016lX", tid);
+}
+
+void get_ost_item_key(u32 index, char* out, size_t out_size) {
+    std::snprintf(out, out_size, "item_%03u", index);
 }
 
 }
@@ -121,6 +132,179 @@ auto get_applet_bgm_path(u64 tid, char* out, int max_len) -> int {
 void set_applet_bgm_path(u64 tid, const char* path) {
     create_config_dir();
     ini_puts("applet_bgm", get_tid_str(tid), path, CONFIG_PATH);
+}
+
+auto get_ost_playlist_size(u64 tid) -> u32 {
+    char section[32]{};
+    get_ost_section(tid, section, sizeof(section));
+    const auto count = ini_getl(section, "count", 0, CONFIG_PATH);
+    return std::clamp<long>(count, 0, applet_bgm::PlaylistMax);
+}
+
+auto get_ost_playlist_item(u64 tid, u32 index, char* out, int max_len) -> int {
+    if (index >= get_ost_playlist_size(tid)) {
+        if (max_len > 0) {
+            out[0] = '\0';
+        }
+        return 0;
+    }
+
+    char section[32]{};
+    char key[16]{};
+    get_ost_section(tid, section, sizeof(section));
+    get_ost_item_key(index, key, sizeof(key));
+    return ini_gets(section, key, "", out, max_len, CONFIG_PATH);
+}
+
+auto append_ost_playlist_item(u64 tid, const char* path) -> bool {
+    if (!path || path[0] == '\0' || std::strlen(path) >= applet_bgm::PathSizeMax) {
+        return false;
+    }
+
+    const auto count = get_ost_playlist_size(tid);
+    if (count >= applet_bgm::PlaylistMax) {
+        return false;
+    }
+
+    char section[32]{};
+    char key[16]{};
+    get_ost_section(tid, section, sizeof(section));
+    get_ost_item_key(count, key, sizeof(key));
+    create_config_dir();
+    if (!ini_puts(section, key, path, CONFIG_PATH)) {
+        return false;
+    }
+    return ini_putl(section, "count", count + 1, CONFIG_PATH) != 0;
+}
+
+auto remove_ost_playlist_item(u64 tid, u32 index) -> bool {
+    const auto count = get_ost_playlist_size(tid);
+    if (index >= count) {
+        return false;
+    }
+
+    char section[32]{};
+    get_ost_section(tid, section, sizeof(section));
+    create_config_dir();
+
+    char path[applet_bgm::PathSizeMax]{};
+    char key[16]{};
+    for (u32 i = index; i + 1 < count; i++) {
+        get_ost_playlist_item(tid, i + 1, path, sizeof(path));
+        get_ost_item_key(i, key, sizeof(key));
+        ini_puts(section, key, path, CONFIG_PATH);
+    }
+
+    get_ost_item_key(count - 1, key, sizeof(key));
+    ini_puts(section, key, "", CONFIG_PATH);
+    return ini_putl(section, "count", count - 1, CONFIG_PATH) != 0;
+}
+
+auto move_ost_playlist_item(u64 tid, u32 src, u32 dst) -> bool {
+    const auto count = get_ost_playlist_size(tid);
+    if (src >= count || dst >= count || src == dst) {
+        return false;
+    }
+
+    char src_path[applet_bgm::PathSizeMax]{};
+    char dst_path[applet_bgm::PathSizeMax]{};
+    if (!get_ost_playlist_item(tid, src, src_path, sizeof(src_path)) ||
+        !get_ost_playlist_item(tid, dst, dst_path, sizeof(dst_path))) {
+        return false;
+    }
+
+    char section[32]{};
+    char src_key[16]{};
+    char dst_key[16]{};
+    get_ost_section(tid, section, sizeof(section));
+    get_ost_item_key(src, src_key, sizeof(src_key));
+    get_ost_item_key(dst, dst_key, sizeof(dst_key));
+    create_config_dir();
+    return ini_puts(section, src_key, dst_path, CONFIG_PATH) != 0 &&
+           ini_puts(section, dst_key, src_path, CONFIG_PATH) != 0;
+}
+
+void clear_ost_playlist(u64 tid) {
+    char section[32]{};
+    get_ost_section(tid, section, sizeof(section));
+    create_config_dir();
+    ini_putl(section, "count", 0, CONFIG_PATH);
+}
+
+auto get_ost_shuffle(u64 tid) -> bool {
+    char section[32]{};
+    get_ost_section(tid, section, sizeof(section));
+    return ini_getbool(section, "shuffle", false, CONFIG_PATH);
+}
+
+void set_ost_shuffle(u64 tid, bool value) {
+    char section[32]{};
+    get_ost_section(tid, section, sizeof(section));
+    create_config_dir();
+    ini_putl(section, "shuffle", value, CONFIG_PATH);
+}
+
+auto get_ost_repeat(u64 tid) -> int {
+    char section[32]{};
+    get_ost_section(tid, section, sizeof(section));
+    return std::clamp<long>(ini_getl(section, "repeat", 2, CONFIG_PATH), 0, 2);
+}
+
+void set_ost_repeat(u64 tid, int value) {
+    char section[32]{};
+    get_ost_section(tid, section, sizeof(section));
+    create_config_dir();
+    ini_putl(section, "repeat", std::clamp(value, 0, 2), CONFIG_PATH);
+}
+
+auto get_fade_in_ms() -> u32 {
+    return std::clamp<long>(ini_getl("ost_manager", "fade_in_ms", 500, CONFIG_PATH), 0, 5000);
+}
+
+void set_fade_in_ms(u32 value) {
+    create_config_dir();
+    ini_putl("ost_manager", "fade_in_ms", std::min(value, 5000u), CONFIG_PATH);
+}
+
+auto get_fade_out_ms() -> u32 {
+    return std::clamp<long>(ini_getl("ost_manager", "fade_out_ms", 500, CONFIG_PATH), 0, 5000);
+}
+
+void set_fade_out_ms(u32 value) {
+    create_config_dir();
+    ini_putl("ost_manager", "fade_out_ms", std::min(value, 5000u), CONFIG_PATH);
+}
+
+void migrate_ost_config() {
+    if (ini_getl("ost_manager", "migration_version", 0, CONFIG_PATH) >= 1) {
+        return;
+    }
+
+    const auto migrate_track = [](u64 tid) {
+        if (get_ost_playlist_size(tid) != 0) {
+            return;
+        }
+
+        char path[applet_bgm::PathSizeMax]{};
+        if (get_applet_bgm_path(tid, path, sizeof(path))) {
+            append_ost_playlist_item(tid, path);
+        }
+    };
+
+    migrate_track(applet_bgm::QlaunchTitleId);
+    for (const auto& target : applet_bgm::Targets) {
+        migrate_track(target.title_id);
+    }
+
+    if (get_ost_playlist_size(applet_bgm::StartupTitleId) == 0) {
+        char load_path[applet_bgm::PathSizeMax]{};
+        if (get_load_path(load_path, sizeof(load_path)) && sdmc::FileExists(load_path)) {
+            append_ost_playlist_item(applet_bgm::StartupTitleId, load_path);
+        }
+    }
+
+    create_config_dir();
+    ini_putl("ost_manager", "migration_version", 1, CONFIG_PATH);
 }
 
 }

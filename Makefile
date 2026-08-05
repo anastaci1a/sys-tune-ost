@@ -1,6 +1,6 @@
 export GITHASH 		:= $(shell git rev-parse --short HEAD)
-export VERSION 		:= 2.1.0-applet-bgm.1
-export API_VERSION 	:= 5
+export VERSION 		:= 2.2.0-ui-ost.1
+export API_VERSION 	:= 6
 export WANT_FLAC 	:= 1
 export WANT_MP3 	:= 1
 export WANT_WAV 	:= 1

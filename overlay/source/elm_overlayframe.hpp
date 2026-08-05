@@ -22,7 +22,7 @@ public:
         renderer->fillScreen(a(tsl::style::color::ColorFrameBackground));
         renderer->drawRect(tsl::cfg::FramebufferWidth - 1, 0, 1, tsl::cfg::FramebufferHeight, a(0xF222));
 
-        renderer->drawString("ovl-tune \u266B", false, 20, 50, 30, a(tsl::style::color::ColorText));
+        renderer->drawString("sys-tune UI OST \u266B", false, 20, 50, 30, a(tsl::style::color::ColorText));
         renderer->drawString(VERSION, false, 20, 70, 15, a(tsl::style::color::ColorDescription));
 
         renderer->drawRect(15, tsl::cfg::FramebufferHeight - 73, tsl::cfg::FramebufferWidth - 30, 1, a(tsl::style::color::ColorText));

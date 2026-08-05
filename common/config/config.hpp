@@ -38,11 +38,34 @@ void set_default_title_volume(float value);
 auto get_load_path(char* out, int max_len) -> int;
 void set_load_path(const char* path);
 
-// Applet BGM mode. Each mapped applet plays one looping track; unmapped
-// applets and regular applications are silent.
+// System UI OST master switch. Regular applications are always silent.
 auto get_applet_bgm_enabled() -> bool;
 void set_applet_bgm_enabled(bool value);
+
+// Legacy single-song Applet BGM config, retained for one-time migration.
 auto get_applet_bgm_path(u64 tid, char* out, int max_len) -> int;
 void set_applet_bgm_path(u64 tid, const char* path);
+
+// Persistent playlist and playback settings for a UI state. StartupTitleId is
+// the special random, one-shot boot sound pool.
+auto get_ost_playlist_size(u64 tid) -> u32;
+auto get_ost_playlist_item(u64 tid, u32 index, char* out, int max_len) -> int;
+auto append_ost_playlist_item(u64 tid, const char* path) -> bool;
+auto remove_ost_playlist_item(u64 tid, u32 index) -> bool;
+auto move_ost_playlist_item(u64 tid, u32 src, u32 dst) -> bool;
+void clear_ost_playlist(u64 tid);
+
+auto get_ost_shuffle(u64 tid) -> bool;
+void set_ost_shuffle(u64 tid, bool value);
+auto get_ost_repeat(u64 tid) -> int;
+void set_ost_repeat(u64 tid, int value);
+
+auto get_fade_in_ms() -> u32;
+void set_fade_in_ms(u32 value);
+auto get_fade_out_ms() -> u32;
+void set_fade_out_ms(u32 value);
+
+// Imports settings created by the first Applet BGM build exactly once.
+void migrate_ost_config();
 
 }

@@ -11,12 +11,11 @@ class BrowserGui final : public tsl::Gui {
     FsFileSystem m_fs;
     bool has_music;
     char cwd[FS_MAX_PATH];
-    u64 m_applet_bgm_tid{};
-    std::string m_applet_bgm_name{};
+    u64 m_ost_state{};
+    std::string m_ost_name{};
 
   public:
-    BrowserGui();
-    BrowserGui(u64 applet_bgm_tid, std::string applet_bgm_name);
+    BrowserGui(u64 ost_state, std::string ost_name);
     ~BrowserGui();
 
     tsl::elm::Element *createUI() override;
@@ -26,5 +25,4 @@ class BrowserGui final : public tsl::Gui {
     void scanCwd();
     void upCwd();
     void addAllToPlaylist();
-    void infoAlert(const std::string &title, const std::string &text);
 };

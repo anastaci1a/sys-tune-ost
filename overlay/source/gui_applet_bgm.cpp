@@ -2,87 +2,59 @@
 
 #include "applet_bgm.hpp"
 #include "config/config.hpp"
-#include "gui_browser.hpp"
-#include "tune.h"
-
-#include <cstring>
+#include "gui_ost_playlist.hpp"
 
 namespace {
 
-std::string TrackName(u64 title_id) {
-    char path[FS_MAX_PATH]{};
-    if (!config::get_applet_bgm_path(title_id, path, sizeof(path))) {
-        return "Not set";
-    }
-
-    const char* name = std::strrchr(path, '/');
-    std::string display_name = name ? name + 1 : path;
-    if (display_name.size() > 18) {
-        display_name.resize(15);
-        display_name += "...";
-    }
-    return display_name;
+std::string PlaylistSize(u64 title_id) {
+    const auto count = config::get_ost_playlist_size(title_id);
+    return std::to_string(count) + (count == 1 ? " track" : " tracks");
 }
 
 }
 
 tsl::elm::Element* AppletBgmGui::createUI() {
-    m_frame = new SysTuneOverlayFrame();
+    auto frame = new SysTuneOverlayFrame();
     m_list = new tsl::elm::List();
-    m_track_items.clear();
-
-    auto enabled = new tsl::elm::ToggleListItem(
-        "Applet BGM", config::get_applet_bgm_enabled(), "On", "Off");
-    enabled->setStateChangedListener([](bool value) {
-        config::set_applet_bgm_enabled(value);
-        tuneReloadAppletBgm();
-    });
-    m_list->addItem(enabled);
+    m_playlist_items.clear();
 
     m_list->addItem(new tsl::elm::CategoryHeader(
-        "Mapped track loops; games are silent", true));
+        "Each UI state has its own playlist", true));
     m_list->addItem(new tsl::elm::CategoryHeader(
-        "HOME + Settings share one track", true));
+        "Games and regular applications stay silent", true));
 
+    addTarget(applet_bgm::StartupTitleId, "Startup Sound", true);
     addTarget(applet_bgm::QlaunchTarget.title_id, applet_bgm::QlaunchTarget.name);
     for (const auto& target : applet_bgm::Targets) {
         addTarget(target.title_id, target.name);
     }
 
-    m_frame->setDescription("\uE0E1  Back     \uE0E0  Set     \uE0E3  Clear");
-    m_frame->setContent(m_list);
-    return m_frame;
+    frame->setDescription("\uE0E1  Back     \uE0E0  Edit playlist");
+    frame->setContent(m_list);
+    return frame;
 }
 
-void AppletBgmGui::addTarget(u64 title_id, const char* name) {
-    const auto track_name = TrackName(title_id);
-    auto item = new tsl::elm::ListItem(name, track_name);
-    item->setValue(track_name, track_name == "Not set");
-    item->setClickListener([this, item, title_id, name](u64 keys) {
+void AppletBgmGui::addTarget(u64 title_id, const char* name, bool startup) {
+    const auto count = PlaylistSize(title_id);
+    auto item = new tsl::elm::ListItem(name, count);
+    item->setValue(count, config::get_ost_playlist_size(title_id) == 0);
+    item->setClickListener([title_id, name, startup](u64 keys) {
         if (keys & HidNpadButton_A) {
-            tsl::changeTo<BrowserGui>(title_id, std::string{name});
-            return true;
-        }
-
-        if (keys & HidNpadButton_Y) {
-            config::set_applet_bgm_path(title_id, "");
-            tuneReloadAppletBgm();
-            item->setValue("Not set", true);
-            m_frame->setToast("Applet BGM cleared", name);
+            tsl::changeTo<OstPlaylistGui>(title_id, std::string{name}, startup);
             return true;
         }
 
         return false;
     });
 
-    m_track_items.emplace_back(title_id, item);
+    m_playlist_items.emplace_back(title_id, item);
     m_list->addItem(item);
 }
 
 void AppletBgmGui::updateTargetValue(u64 title_id, tsl::elm::ListItem* item) {
-    const auto track_name = TrackName(title_id);
-    if (item->getValue() != track_name) {
-        item->setValue(track_name, track_name == "Not set");
+    const auto count = PlaylistSize(title_id);
+    if (item->getValue() != count) {
+        item->setValue(count, config::get_ost_playlist_size(title_id) == 0);
     }
 }
 
@@ -92,7 +64,7 @@ void AppletBgmGui::update() {
         return;
     }
 
-    for (const auto& [title_id, item] : m_track_items) {
+    for (const auto& [title_id, item] : m_playlist_items) {
         updateTargetValue(title_id, item);
     }
 }

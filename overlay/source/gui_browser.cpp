@@ -1,5 +1,6 @@
 #include "gui_browser.hpp"
 
+#include "applet_bgm.hpp"
 #include "config/config.hpp"
 #include "tune.h"
 
@@ -16,6 +17,9 @@ namespace {
     };
 
     ALWAYS_INLINE bool EndsWith(const char *name, const char *ext) {
+        if (std::strlen(name) < std::strlen(ext)) {
+            return false;
+        }
         return strcasecmp(name + std::strlen(name) - std::strlen(ext), ext) == 0;
     }
 
@@ -46,11 +50,9 @@ namespace {
 }
 
 
-BrowserGui::BrowserGui() : BrowserGui(0, "") {}
-
-BrowserGui::BrowserGui(u64 applet_bgm_tid, std::string applet_bgm_name)
-    : m_fs(), has_music(), cwd("/"), m_applet_bgm_tid(applet_bgm_tid),
-      m_applet_bgm_name(std::move(applet_bgm_name)) {
+BrowserGui::BrowserGui(u64 ost_state, std::string ost_name)
+    : m_fs(), has_music(), cwd("/"), m_ost_state(ost_state),
+      m_ost_name(std::move(ost_name)) {
     this->m_list = new tsl::elm::List();
 
     /* Open sd card filesystem. */
@@ -78,11 +80,7 @@ BrowserGui::~BrowserGui() {
 tsl::elm::Element *BrowserGui::createUI() {
     m_frame = new SysTuneOverlayFrame();
 
-    if (m_applet_bgm_tid != 0) {
-        m_frame->setDescription("\uE0E1  Back     \uE0E0  Set applet song");
-    } else {
-        m_frame->setDescription("\uE0E1  Back     \uE0E0  Add    \uE0E2  Add All");
-    }
+    m_frame->setDescription("\uE0E1 Back   \uE0E0 Add   \uE0E2 Add folder");
     m_frame->setContent(this->m_list);
 
     return m_frame;
@@ -96,7 +94,7 @@ bool BrowserGui::handleInput(u64 keysDown, u64, const HidTouchState&, HidAnalogS
             this->upCwd();
             return true;
         }
-    } else if (m_applet_bgm_tid == 0 && (keysDown & HidNpadButton_X)) {
+    } else if (keysDown & HidNpadButton_X) {
         this->addAllToPlaylist();
         return true;
     }
@@ -107,12 +105,8 @@ void BrowserGui::scanCwd() {
     tsl::Gui::removeFocus();
     this->m_list->clear();
 
-    if (m_applet_bgm_tid != 0) {
-        this->m_list->addItem(new tsl::elm::CategoryHeader(
-            "Set Applet BGM: " + m_applet_bgm_name, true));
-    } else {
-        this->m_list->addItem(new tsl::elm::CategoryHeader("\uE0E7  Play selected path on start up", true));
-    }
+    this->m_list->addItem(new tsl::elm::CategoryHeader(
+        "Add to: " + m_ost_name, true));
 
     /* Show absolute folder path. */
     this->m_list->addItem(new tsl::elm::CategoryHeader(this->cwd, true));
@@ -152,14 +146,16 @@ void BrowserGui::scanCwd() {
                 auto item = new tsl::elm::ListItem(entry.name);
                 item->setClickListener([this, item](u64 down) -> bool {
                     if (down & HidNpadButton_A) {
-                        std::strncat(this->cwd, item->getText().c_str(), sizeof(this->cwd) - 1);
-                        std::strncat(this->cwd, "/", sizeof(this->cwd) - 1);
+                        const auto length = std::strlen(this->cwd);
+                        const auto name = item->getText();
+                        if (length + name.size() + 1 >= sizeof(this->cwd)) {
+                            m_frame->setToast("Path is too long", "Choose a folder closer to the SD root.");
+                            return true;
+                        }
+                        std::snprintf(
+                            this->cwd + length, sizeof(this->cwd) - length,
+                            "%s/", name.c_str());
                         this->scanCwd();
-                        return true;
-                    } else if (m_applet_bgm_tid == 0 && (down & HidNpadButton_ZR)) {
-                        std::snprintf(path_buffer, sizeof(path_buffer), "%s%s", this->cwd, item->getText().c_str());
-                        config::set_load_path(path_buffer);
-                        m_frame->setToast("Set start up file", item->getText().c_str());
                         return true;
                     }
                     return false;
@@ -171,27 +167,14 @@ void BrowserGui::scanCwd() {
                 item->setClickListener([this, item](u64 down) -> bool {
                     if (down & HidNpadButton_A) {
                         std::snprintf(path_buffer, sizeof(path_buffer), "%s%s", this->cwd, item->getText().c_str());
-                        if (m_applet_bgm_tid != 0) {
-                            if (std::strlen(path_buffer) >= 256) {
-                                m_frame->setToast("Path is too long", "Keep the full music path below 256 bytes.");
-                            } else {
-                                config::set_applet_bgm_path(m_applet_bgm_tid, path_buffer);
-                                tuneReloadAppletBgm();
-                                m_frame->setToast("Applet BGM song set", item->getText().c_str());
-                            }
+                        if (std::strlen(path_buffer) >= applet_bgm::PathSizeMax) {
+                            m_frame->setToast("Path is too long", "Keep the full music path below 256 bytes.");
+                        } else if (config::append_ost_playlist_item(m_ost_state, path_buffer)) {
+                            tuneReloadOstState(m_ost_state);
+                            m_frame->setToast("Playlist updated", item->getText().c_str());
                         } else {
-                            Result rc = tuneEnqueue(path_buffer, TuneEnqueueType_Back);
-                            if (R_SUCCEEDED(rc)) {
-                                m_frame->setToast("Playlist updated", "Added 1 song to Playlist.");
-                            } else {
-                                m_frame->setToast("Failed to add Track.", "Does the name contain umlauts?");
-                            }
+                            m_frame->setToast("Couldn't add song", "Playlist full or path is invalid.");
                         }
-                        return true;
-                    } else if (m_applet_bgm_tid == 0 && (down & HidNpadButton_ZR)) {
-                        std::snprintf(path_buffer, sizeof(path_buffer), "%s%s", this->cwd, item->getText().c_str());
-                        config::set_load_path(path_buffer);
-                        m_frame->setToast("Set start up file", path_buffer);
                         return true;
                     }
                     return false;
@@ -240,7 +223,7 @@ void BrowserGui::upCwd() {
     if (length <= 1)
         return;
 
-    for (size_t i = length - 2; i >= 0; i--) {
+    for (size_t i = length - 1; i-- > 0;) {
         if (this->cwd[i] == '/') {
             this->cwd[i + 1] = '\0';
             this->scanCwd();
@@ -264,7 +247,7 @@ void BrowserGui::addAllToPlaylist() {
     std::vector<std::string> file_list;
     s64 songs_added = 0;
     s64 count = 0;
-    const u64 max = 300; // max set by PLAYLIST_ENTRY_MAX in music_player.cpp
+    const u64 max = applet_bgm::PlaylistMax;
     std::vector<FsDirectoryEntry> entries(64);
 
     // avoid vector allocs / resize in the loop.
@@ -290,8 +273,13 @@ void BrowserGui::addAllToPlaylist() {
     std::sort(file_list.begin(), file_list.end(), StringTextCompare);
     for (auto const & file : file_list) {
         std::snprintf(path_buffer, sizeof(path_buffer), "%s%s", this->cwd, file.c_str());
-        rc = tuneEnqueue(path_buffer, TuneEnqueueType_Back);
-        if (R_SUCCEEDED(rc)) songs_added++;
+        if (config::append_ost_playlist_item(m_ost_state, path_buffer)) {
+            songs_added++;
+        }
+    }
+
+    if (songs_added != 0) {
+        tuneReloadOstState(m_ost_state);
     }
 
     std::snprintf(path_buffer, sizeof(path_buffer), "Added %ld songs to Playlist.", songs_added);

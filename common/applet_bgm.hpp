@@ -11,6 +11,12 @@ struct Target {
 };
 
 constexpr u64 QlaunchTitleId = 0x0100000000001000ULL;
+// A config/runtime-only ID. It can never collide with a retail program ID.
+constexpr u64 StartupTitleId = UINT64_MAX;
+constexpr u64 SilentTitleId = 0;
+
+constexpr u32 PlaylistMax = 64;
+constexpr u32 PathSizeMax = 256;
 
 // User-facing order for the overlay.
 constexpr std::array Targets = {
@@ -53,8 +59,8 @@ constexpr std::array DetectionTitleIds = {
     0x0100000000001004ULL,
 };
 
-// qlaunch implements both the Home Menu and retail System Settings. There is
-// no separate Settings process to distinguish without a firmware-specific hook.
-constexpr Target QlaunchTarget{QlaunchTitleId, "Home Menu / Settings"};
+// qlaunch implements the Home Menu, retail System Settings, and Entrance
+// (lock) screen. These internal views cannot be distinguished by process ID.
+constexpr Target QlaunchTarget{QlaunchTitleId, "Home / Settings / Lock"};
 
 }

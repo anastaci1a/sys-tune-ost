@@ -7,19 +7,22 @@
 
 class StatusBar final : public tsl::elm::Element {
   private:
-    bool m_playing;
-    TuneRepeatMode m_repeat;
-    TuneShuffleMode m_shuffle;
-    TuneCurrentStats m_stats;
+    bool m_playing{};
+    TuneRepeatMode m_repeat{TuneRepeatMode_Off};
+    TuneShuffleMode m_shuffle{TuneShuffleMode_Off};
+    TuneCurrentStats m_stats{};
+    u64 m_active_state{};
+    u32 m_playlist_size{};
 
-    float m_percentage;
+    float m_percentage{};
 
-    std::string_view m_current_track;
+    std::string m_current_track;
     std::string m_scroll_text;
-    u32 m_text_width;
-    u32 m_scroll_offset;
-    bool m_truncated;
-    u8 m_counter;
+    std::string m_state_label;
+    u32 m_text_width{};
+    u32 m_scroll_offset{};
+    bool m_truncated{};
+    u8 m_counter{};
 
     bool m_touched = false;
 
@@ -41,6 +44,11 @@ class StatusBar final : public tsl::elm::Element {
     void Next();
     void Backward();
     void Forward();
+
+    bool CanEditPlaybackPolicy() const;
+    bool HasPlayableSession() const;
+    bool CanNavigateQueue() const;
+    bool CanSeek() const;
 
   private:
     ALWAYS_INLINE constexpr s32 CenterOfLine(u8 line) {

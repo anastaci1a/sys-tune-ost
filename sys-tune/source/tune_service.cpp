@@ -137,6 +137,16 @@ namespace tune {
                     impl::ReloadAppletBgm();
                     return 0;
 
+                case TuneIpcCmd_ReloadOstState:
+                    SET_SINGLE(u64, impl::ReloadOstState);
+
+                case TuneIpcCmd_ReloadOstMisc:
+                    impl::ReloadOstMisc();
+                    return 0;
+
+                case TuneIpcCmd_GetActiveOstState:
+                    GET_SINGLE(u64, impl::GetActiveOstState);
+
                 case TuneIpcCmd_QuitServer:
                     running = false;
                     return 0;

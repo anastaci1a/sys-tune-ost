@@ -143,9 +143,12 @@ Result tuneEnqueue(const char *path, TuneEnqueueType type);
 Result tuneRemove(u32 index);
 
 /**
- * @brief Reload Applet BGM settings after the overlay updates config.ini.
+ * @brief Reload the System UI OST master setting after config.ini changes.
  */
 Result tuneReloadAppletBgm();
+Result tuneReloadOstState(u64 title_id);
+Result tuneReloadOstMisc();
+Result tuneGetActiveOstState(u64* title_id);
 
 Result tuneQuit();
 
