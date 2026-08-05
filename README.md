@@ -18,12 +18,15 @@ The master **System UI OST** switch is disabled by default. When enabled:
   boot, with an optional **Include Wake from Sleep** toggle to choose a fresh
   random entry after every sleep-wake or display-on event; it may continue
   through the Lock Screen, then yields when it finishes or when Settings,
-  another applet, or a game opens; and
+  another applet, or a game opens;
 - separate 0–5 second track-boundary and mid-song fade controls: the original
   Fade In/Out settings now apply only to track starts and natural endings,
   while Mid-Song Fade In/Out applies to interruptions, manual pause/resume,
   early Startup cancellation, and Home's retained pause/resume. These are
-  sequential fades, not overlapping crossfades.
+  sequential fades, not overlapping crossfades; and
+- persistent 0–150% volume for every UI-state soundtrack, multiplied by the
+  global 0–150% OST volume. Gain above 100% is applied in software and can clip
+  already-loud source files.
 
 Wake replay keys off Horizon's recorded
 [`PlayEvent` power-state changes](https://switchbrew.org/wiki/Shared_Database_services#PlayEvent).
@@ -77,6 +80,14 @@ during the boot logo—qlaunch also stays silent, allowing a configured Startup
 Sound to own that period. Only an observer that is genuinely unavailable falls
 back to Home for compatibility.
 
+A verified Lock or Settings scene takes precedence even when a game or applet
+process remains alive underneath qlaunch. Boot and wake transitions often
+report a brief Home scene before Lock, so every underlying process target is
+held silent until Lock appears or Home remains stable for 1.5 seconds. A
+return to Home from another qlaunch view, applet, or game is likewise held for
+600 ms so a display-off event can win before Home resumes; a genuine return
+therefore has a short confirmation delay.
+
 The observer touches only qlaunch's `erpt:c` connection through Atmosphere's
 MITM extension, records raw scene transitions, and forwards every original
 request unchanged. It supports the legacy and 21.0.0+ ERPT context layouts,
@@ -121,14 +132,15 @@ the new Settings and Lock playlists begin empty.
 
 Use **A** on “Add Songs” to open the browser and **X** there to add every
 supported file in the current folder. In a playlist, use **Y** to remove and
-**ZL/ZR** to move an entry. Fade and output-volume controls live under
-**Misc Options**. All four fade controls use tapered sliders from off through 5
-seconds, with finer steps for short fades and progressively wider steps for
-long fades.
+**ZL/ZR** to move an entry. Every playlist editor has its own **Soundtrack
+Volume** slider. Global **OST Volume** is directly below the player controls on
+the main page. All four fade controls live under **Additional Options** and use
+tapered sliders from off through 5 seconds, with finer steps for short fades and
+progressively wider steps for long fades.
 
 ### Experimental Qlaunch Scene Diagnostics
 
-After a full reboot, open **Misc Options → Qlaunch Scene Diagnostics**. The
+After a full reboot, open **Additional Options → Qlaunch Scene Diagnostics**. The
 observer should progress from **Installed — Waiting** to **Qlaunch Connected**
 and then **Receiving Scenes**. The history remains available to identify more
 qlaunch views in a later build. Any value not listed above is intentionally not
@@ -143,7 +155,7 @@ the menu or resetting its cursor. Playback reload is deferred until leaving the
 playlist editor, hiding the overlay, or closing it, so a sequence of edits does
 not repeatedly interrupt the active soundtrack.
 
-The overlay and sysmodule use API version 11. Install both from the same build;
+The overlay and sysmodule use API version 12. Install both from the same build;
 an older overlay will correctly report the sysmodule as unsupported, and vice
 versa.
 

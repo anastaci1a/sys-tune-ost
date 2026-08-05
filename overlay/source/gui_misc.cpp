@@ -92,18 +92,6 @@ tsl::elm::Element* MiscGui::createUI() {
         "Mid-Song Fade Out", config::get_mid_song_fade_out_ms(),
         config::set_mid_song_fade_out_ms));
 
-    list->addItem(new tsl::elm::CategoryHeader("Output"));
-    constexpr size_t VolumeSteps = 21;
-    float volume = 1.f;
-    tuneGetVolume(&volume);
-    auto volume_slider = new ElmVolume("\uE13C", "OST Volume", VolumeSteps);
-    volume_slider->setProgress(std::clamp<u8>(
-        static_cast<u8>(volume * (VolumeSteps - 1)), 0, VolumeSteps - 1));
-    volume_slider->setValueChangedListener([](u8 value) {
-        tuneSetVolume(static_cast<float>(value) / static_cast<float>(VolumeSteps - 1));
-    });
-    list->addItem(volume_slider);
-
     list->addItem(new tsl::elm::CategoryHeader("Experimental"));
     list->addItem(new ElmTextBlock(
         "Inspect raw qlaunch scene changes.\n"

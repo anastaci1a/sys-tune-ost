@@ -19,7 +19,7 @@ namespace tune::impl {
 
 namespace {
 
-constexpr float VOLUME_MAX = 1.f;
+constexpr float VOLUME_MAX = applet_bgm::VolumeMax;
 constexpr auto AUDIO_FREQ = 48000;
 constexpr auto AUDIO_CHANNEL_COUNT = 2;
 constexpr auto AUDIO_BUFFER_COUNT = 2;
@@ -31,7 +31,8 @@ constexpr u8 PDM_POWER_STATE_TURNED_OFF = 1;
 constexpr u8 PDM_POWER_STATE_SLEEP_MODE_ON = 2;
 constexpr u8 PDM_POWER_STATE_SLEEP_MODE_OFF = 3;
 constexpr s32 PDM_EVENT_BATCH_SIZE = 16;
-constexpr u64 WAKE_SCENE_GRACE_NS = 250'000'000ULL;
+constexpr u64 BOOT_WAKE_HOME_STABLE_NS = 1'500'000'000ULL;
+constexpr u64 RETURN_HOME_STABLE_NS = 600'000'000ULL;
 
 struct OstTrack {
     char path[applet_bgm::PathSizeMax]{};
@@ -143,6 +144,12 @@ enum class PowerTransition {
     Wake,
 };
 
+enum class HomeSceneGate {
+    None,
+    BootOrWake,
+    ReturnToHome,
+};
+
 struct PowerTransitions {
     PowerTransition last{PowerTransition::None};
     bool saw_sleep{};
@@ -240,9 +247,9 @@ std::atomic<u32> g_fade_out_ms = 500;
 std::atomic<u32> g_mid_song_fade_in_ms = 500;
 std::atomic<u32> g_mid_song_fade_out_ms = 500;
 
-float g_title_volume = 1.f;
+std::atomic<float> g_global_volume = 1.f;
+std::atomic<float> g_state_volume = 1.f;
 float g_default_title_volume = 1.f;
-bool g_use_title_volume = true;
 
 AudioOutBuffer g_audout_buffer[AUDIO_BUFFER_COUNT];
 alignas(0x1000) s16 AudioMemoryPool[AUDIO_BUFFER_COUNT]
@@ -270,6 +277,18 @@ void RequestStateAndDiscardAudio(u64 state) {
 
 u64 ResolveQlaunchState(
     u64 process_state, const qlaunch_scene::SceneSnapshot& snapshot) {
+    // qlaunch can visibly cover a still-running game or library applet. Its
+    // verified Lock/Settings scenes therefore take precedence over process
+    // presence; Home does not, because the underlying applet may be in front.
+    if (snapshot.availability == qlaunch_scene::SceneAvailability::Ready) {
+        if (snapshot.scene == applet_bgm::QlaunchSceneLock) {
+            return applet_bgm::LockStateId;
+        }
+        if (snapshot.scene == applet_bgm::QlaunchSceneSettings) {
+            return applet_bgm::SettingsStateId;
+        }
+    }
+
     if (process_state != applet_bgm::QlaunchTitleId) {
         return process_state;
     }
@@ -304,8 +323,9 @@ bool StartupMayContinue(u64 process_state, u64 resolved_state) {
     // Startup Sound. Unknown qlaunch scenes also remain eligible so a new or
     // transient firmware value cannot suppress the boot sound. Settings and
     // every explicitly opened applet do cancel it.
-    return process_state == applet_bgm::QlaunchTitleId &&
-           resolved_state != applet_bgm::SettingsStateId;
+    return resolved_state == applet_bgm::LockStateId ||
+           (process_state == applet_bgm::QlaunchTitleId &&
+            resolved_state != applet_bgm::SettingsStateId);
 }
 
 bool IsPlayablePath(const char* path) {
@@ -367,6 +387,7 @@ void ActivateStateLocked(u64 state, bool force_reload) {
     if (state == applet_bgm::SilentTitleId || !g_master_enabled) {
         g_active_session = nullptr;
         g_active_state = applet_bgm::SilentTitleId;
+        g_state_volume.store(1.f, std::memory_order_release);
         return;
     }
 
@@ -392,6 +413,8 @@ void ActivateStateLocked(u64 state, bool force_reload) {
     }
 
     g_active_state = state;
+    g_state_volume.store(
+        config::get_ost_volume(state), std::memory_order_release);
 }
 
 void ApplyPendingState() {
@@ -606,9 +629,14 @@ Result IsApplicationOutOfFocus(u64 title_id, bool* out_of_focus) {
     return last_result;
 }
 
-void ApplyGain(s16* samples, size_t byte_count, float start_gain, float end_gain) {
+void ApplyGain(s16* samples, size_t byte_count, float start_gain,
+               float end_gain, float playback_gain) {
     const auto frame_count = byte_count / (sizeof(s16) * AUDIO_CHANNEL_COUNT);
-    if (frame_count == 0 || (start_gain >= 0.9999f && end_gain >= 0.9999f)) {
+    if (frame_count == 0) {
+        return;
+    }
+    if (start_gain >= 0.9999f && end_gain >= 0.9999f &&
+        playback_gain >= 0.9999f && playback_gain <= 1.0001f) {
         return;
     }
 
@@ -616,11 +644,14 @@ void ApplyGain(s16* samples, size_t byte_count, float start_gain, float end_gain
         const float progress = frame_count > 1
             ? static_cast<float>(frame) / static_cast<float>(frame_count - 1)
             : 1.f;
-        const float gain = std::clamp(
+        const float fade_gain = std::clamp(
             start_gain + (end_gain - start_gain) * progress, 0.f, 1.f);
+        const float gain = fade_gain * playback_gain;
         for (size_t channel = 0; channel < AUDIO_CHANNEL_COUNT; channel++) {
             const auto index = frame * AUDIO_CHANNEL_COUNT + channel;
-            samples[index] = static_cast<s16>(static_cast<float>(samples[index]) * gain);
+            const auto amplified = static_cast<float>(samples[index]) * gain;
+            samples[index] = static_cast<s16>(
+                std::clamp(amplified, -32768.f, 32767.f));
         }
     }
 }
@@ -788,9 +819,13 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
             transition_remaining_frames = remaining_after;
         }
 
-        ApplyGain(static_cast<s16*>(buffer->buffer), decoded_bytes,
-                  std::min(fade_in_start, fade_out_start),
-                  std::min(fade_in_end, fade_out_end));
+        const auto playback_gain =
+            g_global_volume.load(std::memory_order_acquire) *
+            g_state_volume.load(std::memory_order_acquire);
+        ApplyGain(
+            static_cast<s16*>(buffer->buffer), decoded_bytes,
+            std::min(fade_in_start, fade_out_start),
+            std::min(fade_in_end, fade_out_end), playback_gain);
 
         buffer->data_size = decoded_bytes;
         rc = audoutAppendAudioOutBuffer(buffer);
@@ -848,6 +883,7 @@ Result Initialize() {
     }
 
     R_TRY(audoutInitialize());
+    audoutSetAudioOutVolume(1.f);
     SetVolume(config::get_volume());
     SetDefaultTitleVolume(config::get_default_title_volume());
     config::migrate_ost_config();
@@ -1033,9 +1069,12 @@ void PmdmntThreadFunc(void*) {
     // The initial power-on event belongs to cold boot, whose Startup Sound is
     // already claimed in Initialize(). A real sleep event unlatches wake.
     bool wake_latched = true;
-    bool wake_scene_gate = false;
-    u32 wake_scene_update_count = 0;
-    u64 wake_scene_gate_tick = 0;
+    HomeSceneGate home_scene_gate = HomeSceneGate::BootOrWake;
+    bool gated_home_seen = false;
+    u64 gated_home_since_tick = 0;
+    bool has_previous_qlaunch_scene = false;
+    u8 previous_qlaunch_scene = 0;
+    u64 previous_process_target = UINT64_MAX;
 
     while (g_should_run) {
         const bool reload = g_applet_bgm_reload.exchange(false);
@@ -1075,7 +1114,8 @@ void PmdmntThreadFunc(void*) {
         if (power_transitions.last == PowerTransition::Sleep) {
             sleeping = true;
             wake_latched = false;
-            wake_scene_gate = false;
+            home_scene_gate = HomeSceneGate::None;
+            gated_home_seen = false;
             current_target = applet_bgm::SilentTitleId;
             // Display-off and system-sleep are explicit silent states. Flush
             // queued buffers as well as changing ownership, otherwise a stale
@@ -1086,9 +1126,8 @@ void PmdmntThreadFunc(void*) {
             sleeping = false;
             if (new_wake) {
                 wake_latched = true;
-                wake_scene_gate = true;
-                wake_scene_update_count = scene_snapshot.update_count;
-                wake_scene_gate_tick = armGetSystemTick();
+                home_scene_gate = HomeSceneGate::BootOrWake;
+                gated_home_seen = false;
                 current_target = applet_bgm::SilentTitleId;
 
                 if (enabled && g_startup_on_wake &&
@@ -1106,29 +1145,82 @@ void PmdmntThreadFunc(void*) {
             ? applet_bgm::SilentTitleId
             : ResolveQlaunchState(process_target, scene_snapshot);
 
-        if (wake_scene_gate) {
-            if (process_target != applet_bgm::QlaunchTitleId ||
+        if (!sleeping) {
+            const bool scene_ready =
                 scene_snapshot.availability ==
-                    qlaunch_scene::SceneAvailability::Unavailable) {
-                wake_scene_gate = false;
-            } else {
-                const bool fresh_scene =
+                qlaunch_scene::SceneAvailability::Ready;
+            const bool scene_is_home = scene_ready &&
+                scene_snapshot.scene == applet_bgm::QlaunchSceneHome;
+            const bool scene_is_lock = scene_ready &&
+                scene_snapshot.scene == applet_bgm::QlaunchSceneLock;
+            const bool scene_is_settings = scene_ready &&
+                scene_snapshot.scene == applet_bgm::QlaunchSceneSettings;
+            const bool qlaunch_view_to_home = scene_is_home &&
+                has_previous_qlaunch_scene &&
+                previous_qlaunch_scene != applet_bgm::QlaunchSceneHome;
+            const bool process_return_to_home =
+                target == applet_bgm::QlaunchTitleId &&
+                process_target == applet_bgm::QlaunchTitleId &&
+                previous_process_target != UINT64_MAX &&
+                previous_process_target != applet_bgm::QlaunchTitleId;
+
+            if ((qlaunch_view_to_home || process_return_to_home) &&
+                home_scene_gate == HomeSceneGate::None) {
+                // A normal return to Home and the beginning of display-off
+                // look identical at first: qlaunch reports Home, and an
+                // applet/game may lose foreground ownership before the power
+                // event is visible. Let a pending power event veto playback.
+                home_scene_gate = HomeSceneGate::ReturnToHome;
+                gated_home_seen = false;
+            }
+
+            if (scene_is_lock || scene_is_settings) {
+                // A concrete non-Home scene proves that boot/wake has reached
+                // qlaunch. It also overrides an applet process that remains
+                // alive behind the visible Lock or Settings scene.
+                home_scene_gate = HomeSceneGate::None;
+                gated_home_seen = false;
+            } else if (home_scene_gate != HomeSceneGate::None) {
+                // At boot/wake the foreground process may still be Album, a
+                // game, or another applet while qlaunch first reports Home and
+                // then Lock. Gate every process target until Home is genuinely
+                // stable, not only targets already identified as qlaunch.
+                const bool can_measure_stability = scene_is_home ||
                     scene_snapshot.availability ==
-                        qlaunch_scene::SceneAvailability::Ready &&
-                    (scene_snapshot.update_count != wake_scene_update_count ||
-                     scene_snapshot.scene != applet_bgm::QlaunchSceneHome);
-                const bool grace_elapsed = armTicksToNs(
-                    armGetSystemTick() - wake_scene_gate_tick) >=
-                    WAKE_SCENE_GRACE_NS;
-                if (fresh_scene || grace_elapsed) {
-                    wake_scene_gate = false;
+                        qlaunch_scene::SceneAvailability::Unavailable;
+                if (can_measure_stability) {
+                    const auto now = armGetSystemTick();
+                    if (!gated_home_seen) {
+                        gated_home_seen = true;
+                        gated_home_since_tick = now;
+                    }
+
+                    const auto required_stability =
+                        home_scene_gate == HomeSceneGate::BootOrWake
+                        ? BOOT_WAKE_HOME_STABLE_NS
+                        : RETURN_HOME_STABLE_NS;
+                    if (armTicksToNs(now - gated_home_since_tick) <
+                        required_stability) {
+                        target = applet_bgm::SilentTitleId;
+                    } else {
+                        home_scene_gate = HomeSceneGate::None;
+                        gated_home_seen = false;
+                    }
                 } else {
-                    // Do not trust a retained pre-sleep Home scene during the
-                    // short interval before qlaunch reports Lock/Home anew.
+                    // Waiting and unknown transient scenes are not proof that
+                    // Home is visible. Keep playback silent and restart the
+                    // stability clock when a usable scene arrives.
+                    gated_home_seen = false;
                     target = applet_bgm::SilentTitleId;
                 }
             }
+
+            if (scene_ready) {
+                previous_qlaunch_scene = scene_snapshot.scene;
+                has_previous_qlaunch_scene = true;
+            }
         }
+        previous_process_target = process_target;
         g_detected_state = target;
 
         if (enabled) {
@@ -1137,7 +1229,10 @@ void PmdmntThreadFunc(void*) {
             } else if (g_startup_active) {
                 // Startup can span the boot/wake Lock Screen, but opening
                 // Settings, another applet, or a game ends it immediately.
-                if (!StartupMayContinue(process_target, target)) {
+                const bool awaiting_boot_or_wake_scene =
+                    home_scene_gate == HomeSceneGate::BootOrWake;
+                if (!awaiting_boot_or_wake_scene &&
+                    !StartupMayContinue(process_target, target)) {
                     CancelStartupAndRequest(target);
                 }
             } else if (target != current_target) {
@@ -1228,24 +1323,30 @@ void Prev() {
 }
 
 float GetVolume() {
-    float volume = 1.f;
-    audoutGetAudioOutVolume(&volume);
-    return volume;
+    return g_global_volume.load(std::memory_order_acquire);
 }
 
 void SetVolume(float volume) {
     volume = std::clamp(volume, 0.f, VOLUME_MAX);
-    audoutSetAudioOutVolume(volume);
+    g_global_volume.store(volume, std::memory_order_release);
     config::set_volume(volume);
 }
 
 float GetTitleVolume() {
-    return g_title_volume;
+    return g_state_volume.load(std::memory_order_acquire);
 }
 
 void SetTitleVolume(float volume) {
-    g_title_volume = std::clamp(volume, 0.f, VOLUME_MAX);
-    g_use_title_volume = true;
+    volume = std::clamp(volume, 0.f, VOLUME_MAX);
+    u64 state = applet_bgm::SilentTitleId;
+    {
+        std::scoped_lock lk(g_mutex);
+        state = g_active_state;
+    }
+    if (state != applet_bgm::SilentTitleId) {
+        config::set_ost_volume(state, volume);
+        g_state_volume.store(volume, std::memory_order_release);
+    }
 }
 
 float GetDefaultTitleVolume() {
@@ -1459,6 +1560,11 @@ void ReloadOstMisc() {
     g_mid_song_fade_in_ms = config::get_mid_song_fade_in_ms();
     g_mid_song_fade_out_ms = config::get_mid_song_fade_out_ms();
     g_startup_on_wake = config::get_startup_on_wake();
+    std::scoped_lock lk(g_mutex);
+    g_state_volume.store(
+        g_active_state == applet_bgm::SilentTitleId
+            ? 1.f : config::get_ost_volume(g_active_state),
+        std::memory_order_release);
 }
 
 } // namespace tune::impl

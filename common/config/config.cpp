@@ -117,12 +117,16 @@ void set_repeat(int value) {
 }
 
 auto get_volume() -> float {
-    return ini_getf("config", "volume", 1.f, CONFIG_PATH);
+    return std::clamp(
+        ini_getf("config", "volume", 1.f, CONFIG_PATH),
+        0.f, applet_bgm::VolumeMax);
 }
 
 void set_volume(float value) {
     create_config_dir();
-    ini_putf("config", "volume", value, CONFIG_PATH);
+    ini_putf(
+        "config", "volume",
+        std::clamp(value, 0.f, applet_bgm::VolumeMax), CONFIG_PATH);
 }
 
 auto has_title_enabled(u64 tid) -> bool {
@@ -340,6 +344,19 @@ void set_ost_repeat(u64 tid, int value) {
     get_ost_section(tid, section, sizeof(section));
     create_config_dir();
     ini_putl(section, "repeat", std::clamp(value, 0, 2), CONFIG_PATH);
+}
+
+auto get_ost_volume(u64 tid) -> float {
+    return std::clamp(
+        ini_getf("ost_volume", get_tid_str(tid), 1.f, CONFIG_PATH),
+        0.f, applet_bgm::VolumeMax);
+}
+
+void set_ost_volume(u64 tid, float value) {
+    create_config_dir();
+    ini_putf(
+        "ost_volume", get_tid_str(tid),
+        std::clamp(value, 0.f, applet_bgm::VolumeMax), CONFIG_PATH);
 }
 
 auto get_fade_in_ms() -> u32 {

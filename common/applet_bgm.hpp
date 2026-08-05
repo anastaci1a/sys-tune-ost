@@ -25,6 +25,7 @@ constexpr u8 QlaunchSceneSettings = 0x32;
 
 constexpr u32 PlaylistMax = 64;
 constexpr u32 PathSizeMax = 256;
+constexpr float VolumeMax = 1.5f;
 
 // User-facing order for the overlay.
 constexpr std::array Targets = {

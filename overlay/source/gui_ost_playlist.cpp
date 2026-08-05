@@ -4,6 +4,7 @@
 #include "config/config.hpp"
 #include "elm_text_block.hpp"
 #include "gui_browser.hpp"
+#include "ost_volume_slider.hpp"
 #include "ost_ui_state.hpp"
 #include "tune.h"
 
@@ -42,6 +43,14 @@ void OstPlaylistGui::populate() {
     m_seen_revision = ost_ui_state::getPlaylistRevision(m_title_id);
     m_list->addItem(new tsl::elm::CategoryHeader(m_name));
 
+    m_list->addItem(new tsl::elm::CategoryHeader("Playback Options"));
+    m_list->addItem(ost_volume_ui::MakeVolumeSlider(
+        "Soundtrack Volume", config::get_ost_volume(m_title_id),
+        [title_id = m_title_id](float volume) {
+            config::set_ost_volume(title_id, volume);
+            tuneReloadOstMisc();
+        }));
+
     if (m_startup) {
         m_list->addItem(new tsl::elm::CategoryHeader("Startup Behavior"));
         auto startup_on_wake = new tsl::elm::ToggleListItem(
@@ -53,7 +62,6 @@ void OstPlaylistGui::populate() {
         });
         m_list->addItem(startup_on_wake);
     } else {
-        m_list->addItem(new tsl::elm::CategoryHeader("Playback Options"));
         const bool shuffle_enabled = config::get_ost_shuffle(m_title_id);
         auto shuffle = new tsl::elm::ToggleListItem(
             "Shuffle on Activation", shuffle_enabled, "On", "Off");

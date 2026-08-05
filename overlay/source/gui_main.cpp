@@ -3,7 +3,9 @@
 #include "elm_overlayframe.hpp"
 #include "gui_applet_bgm.hpp"
 #include "gui_misc.hpp"
+#include "ost_volume_slider.hpp"
 #include "config/config.hpp"
+#include "tune.h"
 
 MainGui::MainGui() {
     m_status_bar    = new StatusBar();
@@ -15,6 +17,12 @@ tsl::elm::Element *MainGui::createUI() {
 
     /* Current track. */
     list->addItem(this->m_status_bar, tsl::style::ListItemDefaultHeight * 3);
+
+    float global_volume = config::get_volume();
+    tuneGetVolume(&global_volume);
+    list->addItem(ost_volume_ui::MakeVolumeSlider(
+        "OST Volume", global_volume,
+        [](float volume) { tuneSetVolume(volume); }));
 
     list->addItem(new tsl::elm::CategoryHeader("System UI Soundtracks"));
 
@@ -36,15 +44,15 @@ tsl::elm::Element *MainGui::createUI() {
     });
     list->addItem(soundtracks_button);
 
-    auto misc_button = new tsl::elm::ListItem("Misc Options");
-    misc_button->setClickListener([](u64 keys) {
+    auto options_button = new tsl::elm::ListItem("Additional Options");
+    options_button->setClickListener([](u64 keys) {
         if (keys & HidNpadButton_A) {
             tsl::changeTo<MiscGui>();
             return true;
         }
         return false;
     });
-    list->addItem(misc_button);
+    list->addItem(options_button);
 
     frame->setContent(list);
 

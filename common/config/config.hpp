@@ -68,6 +68,8 @@ auto get_ost_shuffle(u64 tid) -> bool;
 void set_ost_shuffle(u64 tid, bool value);
 auto get_ost_repeat(u64 tid) -> int;
 void set_ost_repeat(u64 tid, int value);
+auto get_ost_volume(u64 tid) -> float;
+void set_ost_volume(u64 tid, float value);
 
 auto get_fade_in_ms() -> u32;
 void set_fade_in_ms(u32 value);
