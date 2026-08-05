@@ -5,6 +5,7 @@
 #include "elm_volume.hpp"
 #include "gui_qlaunch_scene_diagnostics.hpp"
 #include "gui_album_video_diagnostics.hpp"
+#include "gui_power_state_diagnostics.hpp"
 #include "config/config.hpp"
 #include "tune.h"
 
@@ -95,7 +96,7 @@ tsl::elm::Element* MiscGui::createUI() {
 
     list->addItem(new tsl::elm::CategoryHeader("Experimental"));
     list->addItem(new ElmTextBlock(
-        "Inspect qlaunch scenes and Album movie streams.\n"
+        "Inspect qlaunch, Album, and power-state signals.\n"
         "These diagnostics do not alter playlists."));
     auto diagnostics = new tsl::elm::ListItem("Qlaunch Scene Diagnostics");
     diagnostics->setClickListener([](u64 keys) {
@@ -117,6 +118,17 @@ tsl::elm::Element* MiscGui::createUI() {
         return false;
     });
     list->addItem(album_diagnostics);
+
+    auto power_diagnostics = new tsl::elm::ListItem(
+        "Power-State Diagnostics");
+    power_diagnostics->setClickListener([](u64 keys) {
+        if (keys & HidNpadButton_A) {
+            tsl::changeTo<PowerStateDiagnosticsGui>();
+            return true;
+        }
+        return false;
+    });
+    list->addItem(power_diagnostics);
 
     frame->setDescription("\uE0E1 Back   \uE07A/\uE079 Adjust");
     frame->setContent(list);

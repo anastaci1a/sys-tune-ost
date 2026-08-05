@@ -166,6 +166,10 @@ Result tuneGetAlbumVideoObserver(TuneAlbumVideoObserverInfo* out) {
     return serviceDispatchOut(&g_tune, TuneIpcCmd_GetAlbumVideoObserver, *out);
 }
 
+Result tuneGetPowerStateObserver(TunePowerStateObserverInfo* out) {
+    return serviceDispatchOut(&g_tune, TuneIpcCmd_GetPowerStateObserver, *out);
+}
+
 Result tuneQuit() {
     return serviceDispatch(&g_tune, TuneIpcCmd_QuitServer);
 }

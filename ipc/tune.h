@@ -98,6 +98,38 @@ typedef struct {
     u8 reserved[5];
 } TuneAlbumVideoObserverInfo;
 
+typedef enum {
+    TunePowerObserverStatus_Unavailable,
+    TunePowerObserverStatus_Starting,
+    TunePowerObserverStatus_Active,
+    TunePowerObserverStatus_Failed,
+} TunePowerObserverStatus;
+
+typedef enum {
+    TunePowerTransition_None,
+    TunePowerTransition_Sleep,
+    TunePowerTransition_Wake,
+} TunePowerTransition;
+
+typedef struct {
+    u32 status;
+    u32 last_result;
+    u32 module_id;
+    u32 current_state;
+    u32 current_flags;
+    u32 request_count;
+    u32 transition_count;
+    u32 sleep_count;
+    u32 wake_count;
+    u32 audio_quiesce_timeout_count;
+    u64 last_state_tick;
+    u8 has_state;
+    u8 last_transition;
+    u8 lock_screen_enabled;
+    u8 audio_hold_active;
+    u8 reserved[4];
+} TunePowerStateObserverInfo;
+
 Result tuneInitialize();
 
 void tuneExit();
@@ -228,6 +260,11 @@ Result tuneResetQlaunchSceneHistory();
  * @brief Get Album movie-stream observer diagnostics.
  */
 Result tuneGetAlbumVideoObserver(TuneAlbumVideoObserverInfo* out);
+
+/**
+ * @brief Get PSC power-transition observer diagnostics.
+ */
+Result tuneGetPowerStateObserver(TunePowerStateObserverInfo* out);
 
 Result tuneQuit();
 

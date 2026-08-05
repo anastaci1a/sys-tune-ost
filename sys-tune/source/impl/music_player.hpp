@@ -14,6 +14,15 @@ namespace tune::impl {
     void GpioThreadFunc(void *);
     void PmdmntThreadFunc(void *);
 
+    // PSC calls these before acknowledging a system power transition. The
+    // sleep path waits only long enough for the audio thread to flush buffers.
+    u32 PrepareForPowerSleep();
+    bool WaitForPowerAudioQuiesced(u32 request, u64 timeout_ns);
+    void NotifyPowerWake();
+    void ReleasePowerAudioHold();
+    bool IsPowerAudioHoldActive();
+    bool IsLockScreenEnabled();
+
     bool GetStatus();
     void Play();
     void Pause();

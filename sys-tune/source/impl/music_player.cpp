@@ -2,6 +2,7 @@
 
 #include "applet_bgm.hpp"
 #include "../album_video_observer.hpp"
+#include "../power_state_observer.hpp"
 #include "../qlaunch_scene_observer.hpp"
 #include "../tune_result.hpp"
 #include "sdmc/sdmc.hpp"
@@ -33,7 +34,6 @@ constexpr u8 PDM_POWER_STATE_SLEEP_MODE_ON = 2;
 constexpr u8 PDM_POWER_STATE_SLEEP_MODE_OFF = 3;
 constexpr s32 PDM_EVENT_BATCH_SIZE = 16;
 constexpr u64 BOOT_WAKE_HOME_STABLE_NS = 1'500'000'000ULL;
-constexpr u64 RETURN_HOME_STABLE_NS = 1'200'000'000ULL;
 
 struct OstTrack {
     char path[applet_bgm::PathSizeMax]{};
@@ -148,7 +148,6 @@ enum class PowerTransition {
 enum class HomeSceneGate {
     None,
     BootOrWake,
-    ReturnToHome,
 };
 
 struct PowerTransitions {
@@ -236,6 +235,10 @@ std::atomic_bool g_separate_wake_playlist = false;
 std::atomic<u32> g_startup_generation = 0;
 std::atomic_bool g_applet_bgm_reload = true;
 std::atomic_bool g_discard_audio_buffers = false;
+std::atomic_bool g_power_audio_hold = false;
+std::atomic_bool g_lock_screen_enabled = true;
+std::atomic<u32> g_audio_quiesce_request = 0;
+std::atomic<u32> g_audio_quiesce_completed = 0;
 
 std::atomic<u64> g_detected_state = applet_bgm::SilentTitleId;
 std::atomic<u64> g_requested_state = applet_bgm::SilentTitleId;
@@ -261,6 +264,18 @@ static_assert((sizeof(AudioMemoryPool[0]) % 0x2000) == 0,
               "Audio Memory pool needs to be page aligned!");
 
 bool g_pdmqry_available = false;
+
+void RefreshLockScreenSetting() {
+    bool enabled = true;
+    if (R_SUCCEEDED(setsysInitialize())) {
+        if (R_FAILED(setsysGetLockScreenFlag(&enabled))) {
+            // Failing closed avoids leaking Home audio into a Lock screen.
+            enabled = true;
+        }
+        setsysExit();
+    }
+    g_lock_screen_enabled.store(enabled, std::memory_order_release);
+}
 
 void SignalTransition() {
     g_transition_serial.fetch_add(1, std::memory_order_release);
@@ -972,6 +987,11 @@ Result Initialize() {
     SetDefaultTitleVolume(config::get_default_title_volume());
     config::migrate_ost_config();
     ReloadOstMisc();
+    RefreshLockScreenSetting();
+
+    g_power_audio_hold.store(false, std::memory_order_release);
+    g_audio_quiesce_request.store(0, std::memory_order_release);
+    g_audio_quiesce_completed.store(0, std::memory_order_release);
 
     g_master_enabled = config::get_applet_bgm_enabled();
     if (g_master_enabled &&
@@ -996,10 +1016,15 @@ Result Initialize() {
         }
     }
 
+    // Best-effort early power-state detection. PDM remains available as a
+    // fallback if PSC rejects the experimental observer module.
+    power_state::Initialize();
+
     return 0;
 }
 
 void Exit() {
+    power_state::Exit();
     g_should_run = false;
     SignalTransition();
 }
@@ -1020,6 +1045,9 @@ void TuneThreadFunc(void*) {
             // Best effort: this is supported on every firmware targeted by
             // this fork and removes buffers queued by the pre-sleep owner.
             audoutFlushAudioOutBuffers(&flushed);
+            g_audio_quiesce_completed.store(
+                g_audio_quiesce_request.load(std::memory_order_acquire),
+                std::memory_order_release);
         }
 
         u32 play_serial = 0;
@@ -1156,9 +1184,7 @@ void PmdmntThreadFunc(void*) {
     HomeSceneGate home_scene_gate = HomeSceneGate::BootOrWake;
     bool gated_home_seen = false;
     u64 gated_home_since_tick = 0;
-    bool has_previous_qlaunch_scene = false;
-    u8 previous_qlaunch_scene = 0;
-    u64 previous_process_target = UINT64_MAX;
+    u32 last_coordinated_transition = 0;
 
     while (g_should_run) {
         const bool reload = g_applet_bgm_reload.exchange(false);
@@ -1190,9 +1216,41 @@ void PmdmntThreadFunc(void*) {
             &target_pid, &process_target, application_out_of_focus);
         const auto scene_snapshot = qlaunch_scene::GetSceneSnapshot();
 
-        PowerTransitions power_transitions{};
+        // Keep the late PDM cursor current even while PSC is healthy. If the
+        // coordinated observer ever fails mid-cycle, the fallback can then
+        // consume the next real event instead of re-baselining past it and
+        // leaving the pre-sleep audio hold latched.
+        PowerTransitions pdm_power_transitions{};
         if (g_pdmqry_available) {
-            ConsumePowerTransitions(&power_transitions);
+            ConsumePowerTransitions(&pdm_power_transitions);
+        }
+
+        PowerTransitions power_transitions{};
+        bool coordinated_power_transition = false;
+        const auto power_snapshot = power_state::GetSnapshot();
+        if (power_snapshot.transition_count !=
+            last_coordinated_transition) {
+            // Consume the last signal even if PSC failed immediately after
+            // publishing it; otherwise an acknowledged wake could leave the
+            // safety hold latched while the PDM fallback re-baselines.
+            last_coordinated_transition =
+                power_snapshot.transition_count;
+            coordinated_power_transition = true;
+            if (power_snapshot.last_transition ==
+                power_state::Transition::Sleep) {
+                power_transitions.last = PowerTransition::Sleep;
+                power_transitions.saw_sleep = true;
+            } else if (power_snapshot.last_transition ==
+                       power_state::Transition::Wake) {
+                power_transitions.last = PowerTransition::Wake;
+                power_transitions.saw_wake = true;
+            }
+        } else if (power_snapshot.availability !=
+                   power_state::Availability::Active) {
+            // The play-event database is deliberately only a fallback. Its
+            // entries arrive after qlaunch begins its transition, which is too
+            // late to prevent a short false Home selection on its own.
+            power_transitions = pdm_power_transitions;
         }
 
         if (power_transitions.last == PowerTransition::Sleep) {
@@ -1204,15 +1262,19 @@ void PmdmntThreadFunc(void*) {
             // Display-off and system-sleep are explicit silent states. Flush
             // queued buffers as well as changing ownership, otherwise a stale
             // Home buffer can play immediately after resume.
-            CancelStartupAndRequest(applet_bgm::SilentTitleId, true);
+            if (!coordinated_power_transition) {
+                CancelStartupAndRequest(applet_bgm::SilentTitleId, true);
+            }
         } else if (power_transitions.last == PowerTransition::Wake) {
-            const bool new_wake = !wake_latched || power_transitions.saw_sleep;
+            const bool new_wake = coordinated_power_transition ||
+                !wake_latched || power_transitions.saw_sleep;
             sleeping = false;
             if (new_wake) {
                 wake_latched = true;
                 home_scene_gate = HomeSceneGate::BootOrWake;
                 gated_home_seen = false;
                 current_target = applet_bgm::SilentTitleId;
+                RefreshLockScreenSetting();
 
                 const auto wake_startup_state =
                     g_separate_wake_playlist.load(std::memory_order_acquire)
@@ -1226,13 +1288,19 @@ void PmdmntThreadFunc(void*) {
                         applet_bgm::SilentTitleId, true);
                 }
             }
+            // PSC keeps all routing silent until this thread has installed the
+            // wake/startup owner and the boot/wake scene guard.
+            if (IsPowerAudioHoldActive()) {
+                ReleasePowerAudioHold();
+            }
         }
 
-        u64 target = sleeping
+        const bool power_audio_hold = IsPowerAudioHoldActive();
+        u64 target = sleeping || power_audio_hold
             ? applet_bgm::SilentTitleId
             : ResolveQlaunchState(process_target, scene_snapshot);
 
-        if (!sleeping) {
+        if (!sleeping && !power_audio_hold) {
             const bool scene_ready =
                 scene_snapshot.availability ==
                 qlaunch_scene::SceneAvailability::Ready;
@@ -1242,24 +1310,6 @@ void PmdmntThreadFunc(void*) {
                 scene_snapshot.scene == applet_bgm::QlaunchSceneLock;
             const bool scene_is_settings = scene_ready &&
                 scene_snapshot.scene == applet_bgm::QlaunchSceneSettings;
-            const bool qlaunch_view_to_home = scene_is_home &&
-                has_previous_qlaunch_scene &&
-                previous_qlaunch_scene != applet_bgm::QlaunchSceneHome;
-            const bool process_return_to_home =
-                target == applet_bgm::QlaunchTitleId &&
-                process_target == applet_bgm::QlaunchTitleId &&
-                previous_process_target != UINT64_MAX &&
-                previous_process_target != applet_bgm::QlaunchTitleId;
-
-            if ((qlaunch_view_to_home || process_return_to_home) &&
-                home_scene_gate == HomeSceneGate::None) {
-                // A normal return to Home and the beginning of display-off
-                // look identical at first: qlaunch reports Home, and an
-                // applet/game may lose foreground ownership before the power
-                // event is visible. Let a pending power event veto playback.
-                home_scene_gate = HomeSceneGate::ReturnToHome;
-                gated_home_seen = false;
-            }
 
             if (scene_is_lock || scene_is_settings) {
                 // A concrete non-Home scene proves that boot/wake has reached
@@ -1267,11 +1317,19 @@ void PmdmntThreadFunc(void*) {
                 // alive behind the visible Lock or Settings scene.
                 home_scene_gate = HomeSceneGate::None;
                 gated_home_seen = false;
-            } else if (home_scene_gate != HomeSceneGate::None) {
-                // At boot/wake the foreground process may still be Album, a
-                // game, or another applet while qlaunch first reports Home and
-                // then Lock. Gate every process target until Home is genuinely
-                // stable, not only targets already identified as qlaunch.
+            } else if (home_scene_gate == HomeSceneGate::BootOrWake &&
+                       g_lock_screen_enabled.load(std::memory_order_acquire) &&
+                       scene_snapshot.availability !=
+                           qlaunch_scene::SceneAvailability::Unavailable) {
+                // When Horizon says a Lock screen is enabled, a boot/wake Home
+                // report is known to be an intermediate scene. Wait for the
+                // concrete 0x0a Lock report instead of guessing by duration.
+                gated_home_seen = false;
+                target = applet_bgm::SilentTitleId;
+            } else if (home_scene_gate == HomeSceneGate::BootOrWake) {
+                // Consoles with the Lock screen disabled have no concrete
+                // qlaunch scene between boot/wake and Home, so retain a narrow
+                // fallback only for that configuration.
                 const bool can_measure_stability = scene_is_home ||
                     scene_snapshot.availability ==
                         qlaunch_scene::SceneAvailability::Unavailable;
@@ -1282,12 +1340,8 @@ void PmdmntThreadFunc(void*) {
                         gated_home_since_tick = now;
                     }
 
-                    const auto required_stability =
-                        home_scene_gate == HomeSceneGate::BootOrWake
-                        ? BOOT_WAKE_HOME_STABLE_NS
-                        : RETURN_HOME_STABLE_NS;
                     if (armTicksToNs(now - gated_home_since_tick) <
-                        required_stability) {
+                        BOOT_WAKE_HOME_STABLE_NS) {
                         target = applet_bgm::SilentTitleId;
                     } else {
                         home_scene_gate = HomeSceneGate::None;
@@ -1301,17 +1355,11 @@ void PmdmntThreadFunc(void*) {
                     target = applet_bgm::SilentTitleId;
                 }
             }
-
-            if (scene_ready) {
-                previous_qlaunch_scene = scene_snapshot.scene;
-                has_previous_qlaunch_scene = true;
-            }
         }
-        previous_process_target = process_target;
         g_detected_state = target;
 
         if (enabled) {
-            if (sleeping) {
+            if (sleeping || power_audio_hold) {
                 current_target = applet_bgm::SilentTitleId;
             } else if (g_startup_active) {
                 // Startup can span the boot/wake Lock Screen, but opening
@@ -1330,6 +1378,52 @@ void PmdmntThreadFunc(void*) {
 
         svcSleepThread(enabled ? 50'000'000 : 100'000'000);
     }
+}
+
+u32 PrepareForPowerSleep() {
+    g_power_audio_hold.store(true, std::memory_order_release);
+    auto request = g_audio_quiesce_request.fetch_add(
+        1, std::memory_order_acq_rel) + 1;
+    if (request == 0) {
+        request = g_audio_quiesce_request.fetch_add(
+            1, std::memory_order_acq_rel) + 1;
+    }
+    CancelStartupAndRequest(applet_bgm::SilentTitleId, true);
+    return request;
+}
+
+bool WaitForPowerAudioQuiesced(u32 request, u64 timeout_ns) {
+    const auto start = armGetSystemTick();
+    while (g_should_run.load(std::memory_order_acquire)) {
+        if (g_audio_quiesce_completed.load(std::memory_order_acquire) ==
+            request) {
+            return true;
+        }
+        if (armTicksToNs(armGetSystemTick() - start) >= timeout_ns) {
+            break;
+        }
+        svcSleepThread(1'000'000ULL);
+    }
+    return g_audio_quiesce_completed.load(std::memory_order_acquire) ==
+        request;
+}
+
+void NotifyPowerWake() {
+    // The Pmdmnt thread releases this only after it has armed Startup/Lock
+    // ownership. Keeping the hold across resume prevents stale state routing.
+    g_power_audio_hold.store(true, std::memory_order_release);
+}
+
+void ReleasePowerAudioHold() {
+    g_power_audio_hold.store(false, std::memory_order_release);
+}
+
+bool IsPowerAudioHoldActive() {
+    return g_power_audio_hold.load(std::memory_order_acquire);
+}
+
+bool IsLockScreenEnabled() {
+    return g_lock_screen_enabled.load(std::memory_order_acquire);
 }
 
 bool GetStatus() {
