@@ -10,6 +10,10 @@ public:
 
     virtual ~ElmVolume() {}
 
+    void setName(const std::string& name) {
+        m_name = name;
+    }
+
     virtual void draw(tsl::gfx::Renderer *renderer) override {
         const u16 trackBarWidth = this->getWidth() - 95;
         const u16 stepWidth = trackBarWidth / (this->m_numSteps - 1);
@@ -25,5 +29,5 @@ public:
     }
 
 private:
-    const std::string m_name;
+    std::string m_name;
 };

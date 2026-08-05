@@ -37,7 +37,6 @@ namespace tune::impl {
     ShuffleMode GetShuffleMode();
     void SetShuffleMode(ShuffleMode mode);
     u64 GetActiveOstState();
-    TuneTransitionDiagnostics GetTransitionDiagnostics();
 
     u32 GetPlaylistSize();
     u32 GetPlaylistItem(u32 index, char* buffer, size_t buffer_size);

@@ -2,18 +2,19 @@
 
 #include "elm_overlayframe.hpp"
 #include "elm_volume.hpp"
-#include "applet_bgm.hpp"
 #include "config/config.hpp"
 #include "tune.h"
 
 #include <algorithm>
 #include <array>
-#include <cstdint>
 
 namespace {
 
-constexpr std::array<u32, 9> FadeDurations = {
-    0, 250, 500, 750, 1000, 1500, 2000, 3000, 5000,
+constexpr std::array<u32, 26> FadeDurations = {
+    0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500,
+    600, 700, 800, 900, 1000,
+    1250, 1500, 1750, 2000,
+    2500, 3000, 3500, 4000, 4500, 5000,
 };
 
 std::string DurationText(u32 milliseconds) {
@@ -24,70 +25,43 @@ std::string DurationText(u32 milliseconds) {
         return std::to_string(milliseconds) + " ms";
     }
     const auto whole = milliseconds / 1000;
-    const auto tenth = (milliseconds % 1000) / 100;
-    return tenth == 0
-        ? std::to_string(whole) + " s"
-        : std::to_string(whole) + "." + std::to_string(tenth) + " s";
+    auto fraction = std::to_string(1000 + milliseconds % 1000).substr(1);
+    while (!fraction.empty() && fraction.back() == '0') {
+        fraction.pop_back();
+    }
+    return std::to_string(whole) +
+        (fraction.empty() ? "" : "." + fraction) + " s";
 }
 
-size_t NearestDuration(u32 value) {
+size_t NearestFadeStep(u32 value) {
     size_t best = 0;
-    u32 best_distance = UINT32_MAX;
-    for (size_t i = 0; i < FadeDurations.size(); i++) {
+    auto bestDistance = value;
+    for (size_t i = 1; i < FadeDurations.size(); i++) {
         const auto distance = value > FadeDurations[i]
             ? value - FadeDurations[i] : FadeDurations[i] - value;
-        if (distance < best_distance) {
+        if (distance < bestDistance) {
             best = i;
-            best_distance = distance;
+            bestDistance = distance;
         }
     }
     return best;
 }
 
-std::string StateText(u64 state) {
-    if (state == applet_bgm::SilentTitleId) {
-        return "Silence";
-    }
-    if (state == applet_bgm::QlaunchTitleId) {
-        return "Home";
-    }
-    if (state == applet_bgm::StartupTitleId) {
-        return "Startup";
-    }
-    for (const auto& target : applet_bgm::Targets) {
-        if (target.title_id == state) {
-            return target.name;
-        }
-    }
-    return "Unknown";
-}
-
-std::string TimingText(u64 begin_ms, u64 end_ms) {
-    if (begin_ms == 0 || end_ms == 0 || end_ms < begin_ms) {
-        return "Pending";
-    }
-    return std::to_string(end_ms - begin_ms) + " ms";
-}
-
-tsl::elm::ListItem* MakeDurationItem(
+ElmVolume* MakeDurationSlider(
     const char* label, u32 initial, void (*setter)(u32)) {
-    auto index = NearestDuration(initial);
-    auto item = new tsl::elm::ListItem(label, DurationText(initial));
-    item->setClickListener([item, index, setter](u64 keys) mutable {
-        if (keys & HidNpadButton_Left) {
-            index = index == 0 ? FadeDurations.size() - 1 : index - 1;
-        } else if (keys & (HidNpadButton_A | HidNpadButton_Right)) {
-            index = (index + 1) % FadeDurations.size();
-        } else {
-            return false;
-        }
-
-        setter(FadeDurations[index]);
+    const auto value = std::min(initial, FadeDurations.back());
+    const auto step = NearestFadeStep(value);
+    const std::string name = label;
+    auto slider = new ElmVolume(
+        "\uE13C", name + ": " + DurationText(value), FadeDurations.size());
+    slider->setProgress(step);
+    slider->setValueChangedListener([slider, name, setter](u8 value) {
+        const auto milliseconds = FadeDurations[value];
+        setter(milliseconds);
         tuneReloadOstMisc();
-        item->setValue(DurationText(FadeDurations[index]), FadeDurations[index] == 0);
-        return true;
+        slider->setName(name + ": " + DurationText(milliseconds));
     });
-    return item;
+    return slider;
 }
 
 }
@@ -99,9 +73,11 @@ tsl::elm::Element* MiscGui::createUI() {
     list->addItem(new tsl::elm::CategoryHeader("Transitions"));
     list->addItem(new tsl::elm::CategoryHeader(
         "Fade-out then fade-in; tracks do not overlap", true));
-    list->addItem(MakeDurationItem(
+    list->addItem(new tsl::elm::CategoryHeader(
+        "Short fades use finer slider steps", true));
+    list->addItem(MakeDurationSlider(
         "Fade in", config::get_fade_in_ms(), config::set_fade_in_ms));
-    list->addItem(MakeDurationItem(
+    list->addItem(MakeDurationSlider(
         "Fade out", config::get_fade_out_ms(), config::set_fade_out_ms));
 
     list->addItem(new tsl::elm::CategoryHeader("Output"));
@@ -116,44 +92,7 @@ tsl::elm::Element* MiscGui::createUI() {
     });
     list->addItem(volume_slider);
 
-    list->addItem(new tsl::elm::CategoryHeader("Last Home resume diagnostics"));
-    TuneTransitionDiagnostics diagnostics{};
-    if (R_FAILED(tuneGetTransitionDiagnostics(&diagnostics)) ||
-        diagnostics.sequence == 0) {
-        auto item = new tsl::elm::ListItem(
-            "No Home transition captured", "Return from an applet first");
-        item->setValue("Return from an applet first", true);
-        list->addItem(item);
-    } else {
-        list->addItem(new tsl::elm::ListItem(
-            "Requested from", StateText(diagnostics.from_state)));
-        list->addItem(new tsl::elm::ListItem(
-            "Fade + activation",
-            TimingText(diagnostics.requested_ms, diagnostics.active_ms)));
-        list->addItem(new tsl::elm::ListItem(
-            "Player scheduling",
-            TimingText(diagnostics.active_ms, diagnostics.player_start_ms)));
-        list->addItem(new tsl::elm::ListItem(
-            "Source preparation",
-            TimingText(diagnostics.player_start_ms,
-                       diagnostics.source_ready_ms)));
-        list->addItem(new tsl::elm::ListItem(
-            "First audio buffer",
-            TimingText(diagnostics.source_ready_ms,
-                       diagnostics.first_buffer_ms)));
-        list->addItem(new tsl::elm::ListItem(
-            "Total after request",
-            TimingText(diagnostics.requested_ms,
-                       diagnostics.first_buffer_ms)));
-
-        std::string cache_text = "Pending";
-        if (diagnostics.cache_attempted) {
-            cache_text = diagnostics.cache_hit ? "Retained" : "Reopened";
-        }
-        list->addItem(new tsl::elm::ListItem("Home decoder", cache_text));
-    }
-
-    frame->setDescription("\uE0E1 Back   \uE07A/\uE079 or \uE0E0 Change");
+    frame->setDescription("\uE0E1 Back   \uE07A/\uE079 Adjust");
     frame->setContent(list);
     return frame;
 }

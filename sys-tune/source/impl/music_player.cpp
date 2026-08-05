@@ -187,7 +187,6 @@ struct PlaybackSourceCache {
 
 LockableMutex g_mutex;
 LockableMutex g_startup_mutex;
-LockableMutex g_diagnostics_mutex;
 
 OstSession g_home_session;
 OstSession g_applet_session;
@@ -215,9 +214,6 @@ std::atomic<u64> g_detected_state = applet_bgm::QlaunchTitleId;
 std::atomic<u64> g_requested_state = applet_bgm::SilentTitleId;
 std::atomic<u32> g_transition_serial = 1;
 
-TuneTransitionDiagnostics g_home_transition_diagnostics{};
-u64 g_home_transition_sequence{};
-
 std::atomic_bool g_force_reload_pending = false;
 std::atomic<u64> g_force_reload_state = applet_bgm::SilentTitleId;
 
@@ -236,84 +232,12 @@ static_assert((sizeof(AudioMemoryPool[0]) % 0x2000) == 0,
 
 bool g_pdmqry_available = false;
 
-u64 NowMs() {
-    return armTicksToNs(armGetSystemTick()) / 1'000'000;
-}
-
-void BeginHomeTransitionDiagnostics(u64 from_state) {
-    std::scoped_lock lk(g_diagnostics_mutex);
-    g_home_transition_diagnostics = {};
-    g_home_transition_diagnostics.sequence = ++g_home_transition_sequence;
-    g_home_transition_diagnostics.from_state = from_state;
-    g_home_transition_diagnostics.requested_ms = NowMs();
-}
-
-u64 GetHomeTransitionSequence() {
-    std::scoped_lock lk(g_diagnostics_mutex);
-    return g_home_transition_diagnostics.sequence;
-}
-
-void MarkHomeActive() {
-    std::scoped_lock lk(g_diagnostics_mutex);
-    if (g_home_transition_diagnostics.sequence != 0 &&
-        g_home_transition_diagnostics.active_ms == 0) {
-        g_home_transition_diagnostics.active_ms = NowMs();
-    }
-}
-
-void MarkHomePlayerStart(u64 sequence, u32 resume_frame) {
-    std::scoped_lock lk(g_diagnostics_mutex);
-    if (sequence == 0 ||
-        sequence != g_home_transition_diagnostics.sequence) {
-        return;
-    }
-    if (g_home_transition_diagnostics.player_start_ms == 0) {
-        g_home_transition_diagnostics.player_start_ms = NowMs();
-        g_home_transition_diagnostics.resume_frame = resume_frame;
-    }
-}
-
-void MarkHomeCacheResult(u64 sequence, bool cache_hit) {
-    std::scoped_lock lk(g_diagnostics_mutex);
-    if (sequence == 0 ||
-        sequence != g_home_transition_diagnostics.sequence) {
-        return;
-    }
-    if (!g_home_transition_diagnostics.cache_attempted) {
-        g_home_transition_diagnostics.cache_attempted = 1;
-        g_home_transition_diagnostics.cache_hit = cache_hit;
-    }
-}
-
-void MarkHomeSourceReady(u64 sequence) {
-    std::scoped_lock lk(g_diagnostics_mutex);
-    if (sequence != 0 &&
-        sequence == g_home_transition_diagnostics.sequence &&
-        g_home_transition_diagnostics.source_ready_ms == 0) {
-        g_home_transition_diagnostics.source_ready_ms = NowMs();
-    }
-}
-
-void MarkHomeFirstBuffer(u64 sequence) {
-    std::scoped_lock lk(g_diagnostics_mutex);
-    if (sequence != 0 &&
-        sequence == g_home_transition_diagnostics.sequence &&
-        g_home_transition_diagnostics.first_buffer_ms == 0) {
-        g_home_transition_diagnostics.first_buffer_ms = NowMs();
-    }
-}
-
 void SignalTransition() {
     g_transition_serial.fetch_add(1, std::memory_order_release);
 }
 
 void RequestState(u64 state) {
-    const auto previous =
-        g_requested_state.exchange(state, std::memory_order_acq_rel);
-    if (previous != state) {
-        if (state == applet_bgm::QlaunchTitleId) {
-            BeginHomeTransitionDiagnostics(previous);
-        }
+    if (g_requested_state.exchange(state, std::memory_order_acq_rel) != state) {
         SignalTransition();
     }
 }
@@ -411,16 +335,9 @@ void ApplyPendingState() {
         force_reload = g_force_reload_state.load(std::memory_order_acquire) == requested;
     }
 
-    bool activated_home = false;
-    {
-        std::scoped_lock lk(g_mutex);
-        if (requested != g_active_state || force_reload) {
-            ActivateStateLocked(requested, force_reload);
-            activated_home = requested == applet_bgm::QlaunchTitleId;
-        }
-    }
-    if (activated_home) {
-        MarkHomeActive();
+    std::scoped_lock lk(g_mutex);
+    if (requested != g_active_state || force_reload) {
+        ActivateStateLocked(requested, force_reload);
     }
 }
 
@@ -627,17 +544,10 @@ void ApplyGain(s16* samples, size_t byte_count, float start_gain, float end_gain
 
 PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
                          u32 playing_position, u32 playing_generation,
-                         PlaybackSourceCache* resume_cache,
-                         u64 home_diagnostics_sequence) {
-    if (home_diagnostics_sequence != 0) {
-        MarkHomePlayerStart(home_diagnostics_sequence, resume_frame);
-    }
+                         PlaybackSourceCache* resume_cache) {
     std::unique_ptr<Source> source;
     const bool reused_source = resume_cache && resume_cache->Take(
         path, playing_position, playing_generation, resume_frame, source);
-    if (resume_cache) {
-        MarkHomeCacheResult(home_diagnostics_sequence, reused_source);
-    }
     if (!reused_source) {
         source = OpenFile(path);
         if (!source || !source->IsOpen()) {
@@ -650,7 +560,6 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
             resume_frame = 0;
         }
     }
-    MarkHomeSourceReady(home_diagnostics_sequence);
 
     AudioOutState state;
     Result rc = audoutGetAudioOutState(&state);
@@ -675,7 +584,6 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
     u64 transition_remaining_frames = 0;
     u32 interrupted_resume_frame = resume_frame;
     PlaybackResult outcome{0, PlaybackEnd::Error, resume_frame};
-    bool first_buffer_reported = false;
 
     while (g_should_run) {
         const bool interrupted = g_output_paused ||
@@ -790,10 +698,6 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
             outcome = {rc, PlaybackEnd::Error, after.first};
             break;
         }
-        if (!first_buffer_reported) {
-            MarkHomeFirstBuffer(home_diagnostics_sequence);
-            first_buffer_reported = true;
-        }
         segment_output_frames += output_frames;
 
         if (transition_fade && transition_remaining_frames == 0) {
@@ -903,7 +807,6 @@ void TuneThreadFunc(void*) {
         u64 playing_state = applet_bgm::SilentTitleId;
         u32 playing_position = 0;
         u32 playing_generation = 0;
-        u64 home_diagnostics_sequence = 0;
         u32 playing_startup_generation = 0;
         {
             std::scoped_lock lk(g_mutex);
@@ -915,10 +818,6 @@ void TuneThreadFunc(void*) {
                     playing_state = g_active_state;
                     playing_position = g_active_session->position;
                     playing_generation = g_active_session->generation;
-                    if (playing_state == applet_bgm::QlaunchTitleId) {
-                        home_diagnostics_sequence =
-                            GetHomeTransitionSequence();
-                    }
                     if (playing_state == applet_bgm::StartupTitleId) {
                         playing_startup_generation =
                             g_startup_generation.load(std::memory_order_acquire);
@@ -957,8 +856,7 @@ void TuneThreadFunc(void*) {
             play_path, resume_frame, play_serial, playing_position,
             playing_generation,
             playing_state == applet_bgm::QlaunchTitleId
-                ? &home_source_cache : nullptr,
-            home_diagnostics_sequence);
+                ? &home_source_cache : nullptr);
         bool startup_finished = false;
         {
             std::scoped_lock lk(g_mutex);
@@ -1245,11 +1143,6 @@ ShuffleMode GetShuffleMode() {
 u64 GetActiveOstState() {
     std::scoped_lock lk(g_mutex);
     return g_active_state;
-}
-
-TuneTransitionDiagnostics GetTransitionDiagnostics() {
-    std::scoped_lock lk(g_diagnostics_mutex);
-    return g_home_transition_diagnostics;
 }
 
 void SetShuffleMode(ShuffleMode mode) {

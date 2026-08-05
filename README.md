@@ -96,12 +96,9 @@ The migration is one-time and does not delete the legacy keys.
 Use **A** on “Add songs” to open the browser and **X** there to add every
 supported file in the current folder. In a playlist, use **Y** to remove and
 **ZL/ZR** to move an entry. Fade and output-volume controls live under
-**Misc Options**.
-
-Misc Options also records read-only timings for the most recent transition
-back to HOME: its prior state, fade/activation time, player scheduling, source
-preparation, first audio buffer, and whether the retained HOME decoder was
-reused. These counters do not write to the SD card or alter playback behavior.
+**Misc Options**. Fade-in and fade-out use tapered sliders from off through 5
+seconds, with finer steps for short fades and progressively wider steps for
+long fades.
 
 The overlay and sysmodule use API version 8. Install both from the same build;
 an older overlay will correctly report the sysmodule as unsupported, and vice
