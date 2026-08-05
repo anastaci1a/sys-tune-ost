@@ -24,7 +24,8 @@ std::string FileName(const char* path) {
 }
 
 OstPlaylistGui::OstPlaylistGui(u64 title_id, std::string name, bool startup)
-    : m_title_id(title_id), m_name(std::move(name)), m_startup(startup) {}
+    : m_title_id(title_id), m_name(std::move(name)), m_startup(startup),
+      m_main_startup(title_id == applet_bgm::StartupTitleId) {}
 
 tsl::elm::Element* OstPlaylistGui::createUI() {
     m_frame = new SysTuneOverlayFrame();
@@ -51,7 +52,20 @@ void OstPlaylistGui::populate() {
             tuneReloadOstMisc();
         }));
 
-    if (m_startup) {
+    if (m_title_id == applet_bgm::AlbumTitleId) {
+        m_list->addItem(ost_volume_ui::MakeVolumeSlider(
+            "Volume During Video Playback",
+            config::get_album_video_volume(),
+            [](float volume) {
+                config::set_album_video_volume(volume);
+                tuneReloadOstMisc();
+            }));
+        m_list->addItem(new ElmTextBlock(
+            "Uses movie streams, including trimming; paused videos\n"
+            "stay at this level. Changes use Mid-Song fades."));
+    }
+
+    if (m_main_startup) {
         m_list->addItem(new tsl::elm::CategoryHeader("Startup Behavior"));
         auto startup_on_wake = new tsl::elm::ToggleListItem(
             "Include Wake from Sleep", config::get_startup_on_wake(),
@@ -61,7 +75,19 @@ void OstPlaylistGui::populate() {
             tuneReloadOstMisc();
         });
         m_list->addItem(startup_on_wake);
-    } else {
+
+        auto separate_wake = new tsl::elm::ToggleListItem(
+            "Use Separate Wake Playlist",
+            config::get_separate_wake_playlist(), "On", "Off");
+        separate_wake->setStateChangedListener([this](bool value) {
+            config::set_separate_wake_playlist(value);
+            tuneReloadOstMisc();
+            setWakePlaylistButtonVisible(value);
+        });
+        m_list->addItem(separate_wake);
+        setWakePlaylistButtonVisible(
+            config::get_separate_wake_playlist());
+    } else if (!m_startup) {
         const bool shuffle_enabled = config::get_ost_shuffle(m_title_id);
         auto shuffle = new tsl::elm::ToggleListItem(
             "Shuffle on Activation", shuffle_enabled, "On", "Off");
@@ -290,11 +316,61 @@ void OstPlaylistGui::markPlaylistChanged() {
     m_seen_revision = ost_ui_state::markPlaylistChanged(m_title_id);
 }
 
+void OstPlaylistGui::setWakePlaylistButtonVisible(bool visible) {
+    if (visible && !m_wake_playlist_button) {
+        const auto count = config::get_ost_playlist_size(
+            applet_bgm::WakeStartupTitleId);
+        const auto count_text = std::to_string(count) +
+            (count == 1 ? " Track" : " Tracks");
+        m_wake_playlist_button = new tsl::elm::ListItem(
+            "Wake Playlist", count_text);
+        m_wake_playlist_button->setValue(count_text, count == 0);
+        m_wake_playlist_button->setClickListener([](u64 keys) {
+            if (!(keys & HidNpadButton_A)) {
+                return false;
+            }
+            tsl::changeTo<OstPlaylistGui>(
+                applet_bgm::WakeStartupTitleId,
+                std::string{"Wake Startup Sound"}, true);
+            return true;
+        });
+        m_wake_seen_revision = ost_ui_state::getPlaylistRevision(
+            applet_bgm::WakeStartupTitleId);
+        // Main Startup has six rows before this conditional button.
+        m_list->addItem(m_wake_playlist_button, 0, 6);
+    } else if (!visible && m_wake_playlist_button) {
+        m_list->removeItem(m_wake_playlist_button);
+        m_wake_playlist_button = nullptr;
+    }
+}
+
+void OstPlaylistGui::updateWakePlaylistButtonValue() {
+    if (!m_wake_playlist_button) {
+        return;
+    }
+    const auto count = config::get_ost_playlist_size(
+        applet_bgm::WakeStartupTitleId);
+    const auto count_text = std::to_string(count) +
+        (count == 1 ? " Track" : " Tracks");
+    if (m_wake_playlist_button->getValue() != count_text) {
+        m_wake_playlist_button->setValue(count_text, count == 0);
+    }
+}
+
 void OstPlaylistGui::update() {
     const auto revision = ost_ui_state::getPlaylistRevision(m_title_id);
     if (revision != m_seen_revision) {
         syncPlaylist();
         m_seen_revision = revision;
+    }
+
+    if (m_wake_playlist_button) {
+        const auto wake_revision = ost_ui_state::getPlaylistRevision(
+            applet_bgm::WakeStartupTitleId);
+        if (wake_revision != m_wake_seen_revision) {
+            m_wake_seen_revision = wake_revision;
+            updateWakePlaylistButtonValue();
+        }
     }
 }
 

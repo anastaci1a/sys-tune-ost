@@ -32,6 +32,9 @@ namespace {
         if (title_id == applet_bgm::StartupTitleId) {
             return "Startup Sound";
         }
+        if (title_id == applet_bgm::WakeStartupTitleId) {
+            return "Wake Startup Sound";
+        }
         if (title_id == applet_bgm::QlaunchTitleId) {
             return "Home Menu OST";
         }
@@ -336,7 +339,7 @@ void StatusBar::Backward() {
 
 bool StatusBar::CanEditPlaybackPolicy() const {
     return this->m_active_state != applet_bgm::SilentTitleId &&
-           this->m_active_state != applet_bgm::StartupTitleId;
+           !applet_bgm::IsStartupState(this->m_active_state);
 }
 
 bool StatusBar::HasPlayableSession() const {
@@ -346,7 +349,7 @@ bool StatusBar::HasPlayableSession() const {
 
 bool StatusBar::CanNavigateQueue() const {
     return HasPlayableSession() &&
-           this->m_active_state != applet_bgm::StartupTitleId;
+           !applet_bgm::IsStartupState(this->m_active_state);
 }
 
 bool StatusBar::CanSeek() const {

@@ -38,6 +38,7 @@ enum TuneIpcCmd {
 
     TuneIpcCmd_QuitServer = 50,
     TuneIpcCmd_ResetQlaunchSceneHistory = 51,
+    TuneIpcCmd_GetAlbumVideoObserver = 52,
 
     TuneIpcCmd_GetApiVersion = 5000,
 };

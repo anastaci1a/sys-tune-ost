@@ -162,6 +162,10 @@ Result tuneResetQlaunchSceneHistory() {
     return serviceDispatch(&g_tune, TuneIpcCmd_ResetQlaunchSceneHistory);
 }
 
+Result tuneGetAlbumVideoObserver(TuneAlbumVideoObserverInfo* out) {
+    return serviceDispatchOut(&g_tune, TuneIpcCmd_GetAlbumVideoObserver, *out);
+}
+
 Result tuneQuit() {
     return serviceDispatch(&g_tune, TuneIpcCmd_QuitServer);
 }

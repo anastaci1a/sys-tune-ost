@@ -11,11 +11,17 @@ struct Target {
 };
 
 constexpr u64 QlaunchTitleId = 0x0100000000001000ULL;
+constexpr u64 AlbumTitleId = 0x010000000000100DULL;
 // Config/runtime-only IDs. They cannot collide with retail program IDs.
 constexpr u64 StartupTitleId = UINT64_MAX;
 constexpr u64 SettingsStateId = UINT64_MAX - 1;
 constexpr u64 LockStateId = UINT64_MAX - 2;
+constexpr u64 WakeStartupTitleId = UINT64_MAX - 3;
 constexpr u64 SilentTitleId = 0;
+
+constexpr bool IsStartupState(u64 state) {
+    return state == StartupTitleId || state == WakeStartupTitleId;
+}
 
 // Raw SystemAppletScene values observed repeatedly on hardware. Home keeps
 // qlaunch's real program ID so existing playlists migrate to the Home state.
@@ -29,7 +35,7 @@ constexpr float VolumeMax = 1.5f;
 
 // User-facing order for the overlay.
 constexpr std::array Targets = {
-    Target{0x010000000000100DULL, "Album / Photos"},
+    Target{AlbumTitleId, "Album / Photos"},
     Target{0x0100000000001003ULL, "Controllers"},
     Target{0x0100000000001013ULL, "User Page"},
     Target{0x0100000000001009ULL, "Mii Editor"},

@@ -4,6 +4,7 @@
 #include "elm_text_block.hpp"
 #include "elm_volume.hpp"
 #include "gui_qlaunch_scene_diagnostics.hpp"
+#include "gui_album_video_diagnostics.hpp"
 #include "config/config.hpp"
 #include "tune.h"
 
@@ -94,8 +95,8 @@ tsl::elm::Element* MiscGui::createUI() {
 
     list->addItem(new tsl::elm::CategoryHeader("Experimental"));
     list->addItem(new ElmTextBlock(
-        "Inspect raw qlaunch scene changes.\n"
-        "This diagnostic does not alter playlists."));
+        "Inspect qlaunch scenes and Album movie streams.\n"
+        "These diagnostics do not alter playlists."));
     auto diagnostics = new tsl::elm::ListItem("Qlaunch Scene Diagnostics");
     diagnostics->setClickListener([](u64 keys) {
         if (keys & HidNpadButton_A) {
@@ -105,6 +106,17 @@ tsl::elm::Element* MiscGui::createUI() {
         return false;
     });
     list->addItem(diagnostics);
+
+    auto album_diagnostics = new tsl::elm::ListItem(
+        "Album Video Diagnostics");
+    album_diagnostics->setClickListener([](u64 keys) {
+        if (keys & HidNpadButton_A) {
+            tsl::changeTo<AlbumVideoDiagnosticsGui>();
+            return true;
+        }
+        return false;
+    });
+    list->addItem(album_diagnostics);
 
     frame->setDescription("\uE0E1 Back   \uE07A/\uE079 Adjust");
     frame->setContent(list);

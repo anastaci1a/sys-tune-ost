@@ -1,6 +1,7 @@
 #include "music_player.hpp"
 
 #include "applet_bgm.hpp"
+#include "../album_video_observer.hpp"
 #include "../qlaunch_scene_observer.hpp"
 #include "../tune_result.hpp"
 #include "sdmc/sdmc.hpp"
@@ -32,7 +33,7 @@ constexpr u8 PDM_POWER_STATE_SLEEP_MODE_ON = 2;
 constexpr u8 PDM_POWER_STATE_SLEEP_MODE_OFF = 3;
 constexpr s32 PDM_EVENT_BATCH_SIZE = 16;
 constexpr u64 BOOT_WAKE_HOME_STABLE_NS = 1'500'000'000ULL;
-constexpr u64 RETURN_HOME_STABLE_NS = 600'000'000ULL;
+constexpr u64 RETURN_HOME_STABLE_NS = 1'200'000'000ULL;
 
 struct OstTrack {
     char path[applet_bgm::PathSizeMax]{};
@@ -231,6 +232,7 @@ std::atomic_bool g_should_run = true;
 std::atomic_bool g_master_enabled = false;
 std::atomic_bool g_startup_active = false;
 std::atomic_bool g_startup_on_wake = false;
+std::atomic_bool g_separate_wake_playlist = false;
 std::atomic<u32> g_startup_generation = 0;
 std::atomic_bool g_applet_bgm_reload = true;
 std::atomic_bool g_discard_audio_buffers = false;
@@ -249,6 +251,7 @@ std::atomic<u32> g_mid_song_fade_out_ms = 500;
 
 std::atomic<float> g_global_volume = 1.f;
 std::atomic<float> g_state_volume = 1.f;
+std::atomic<float> g_album_video_volume = 1.f;
 float g_default_title_volume = 1.f;
 
 AudioOutBuffer g_audout_buffer[AUDIO_BUFFER_COUNT];
@@ -391,7 +394,7 @@ void ActivateStateLocked(u64 state, bool force_reload) {
         return;
     }
 
-    if (state == applet_bgm::StartupTitleId) {
+    if (applet_bgm::IsStartupState(state)) {
         LoadSession(g_startup_session, state, true);
         g_active_session = &g_startup_session;
     } else if (state == applet_bgm::QlaunchTitleId) {
@@ -442,7 +445,10 @@ void CompleteStartup(u32 generation) {
         : applet_bgm::SilentTitleId);
 }
 
-void BeginStartup(bool discard_audio = false) {
+void BeginStartup(u64 startup_state, bool discard_audio = false) {
+    if (!applet_bgm::IsStartupState(startup_state)) {
+        return;
+    }
     std::scoped_lock lk(g_startup_mutex);
     g_startup_generation.fetch_add(1, std::memory_order_acq_rel);
     g_startup_active = true;
@@ -454,10 +460,10 @@ void BeginStartup(bool discard_audio = false) {
     // A wake always chooses a fresh random entry, including when the previous
     // Startup sound was still active as the console entered sleep.
     g_force_reload_state.store(
-        applet_bgm::StartupTitleId, std::memory_order_release);
+        startup_state, std::memory_order_release);
     g_force_reload_pending.store(true, std::memory_order_release);
     g_requested_state.store(
-        applet_bgm::StartupTitleId, std::memory_order_release);
+        startup_state, std::memory_order_release);
     SignalTransition();
 }
 
@@ -629,14 +635,75 @@ Result IsApplicationOutOfFocus(u64 title_id, bool* out_of_focus) {
     return last_result;
 }
 
+struct GainEnvelope {
+    float current{1.f};
+    float start{1.f};
+    float target{1.f};
+    u64 elapsed_frames{};
+    u64 total_frames{};
+
+    void SetImmediate(float value) {
+        current = value;
+        start = value;
+        target = value;
+        elapsed_frames = 0;
+        total_frames = 0;
+    }
+
+    void Retarget(float value, u32 duration_ms) {
+        if (value == target) {
+            return;
+        }
+        start = current;
+        target = value;
+        elapsed_frames = 0;
+        total_frames =
+            static_cast<u64>(AUDIO_FREQ) * duration_ms / 1000;
+        if (total_frames == 0) {
+            current = target;
+        }
+    }
+
+    std::pair<float, float> Advance(u64 frame_count) {
+        const float before = current;
+        if (total_frames == 0 || elapsed_frames >= total_frames) {
+            current = target;
+            return {before, current};
+        }
+
+        elapsed_frames = std::min(total_frames, elapsed_frames + frame_count);
+        const auto progress = static_cast<float>(elapsed_frames) /
+            static_cast<float>(total_frames);
+        current = start + (target - start) * progress;
+        if (elapsed_frames == total_frames) {
+            current = target;
+        }
+        return {before, current};
+    }
+};
+
+float AlbumVideoGainTarget(u64 playing_state) {
+    if (playing_state != applet_bgm::AlbumTitleId) {
+        return 1.f;
+    }
+    const auto snapshot = album_video::GetSnapshot();
+    return snapshot.active
+        ? g_album_video_volume.load(std::memory_order_acquire)
+        : 1.f;
+}
+
 void ApplyGain(s16* samples, size_t byte_count, float start_gain,
-               float end_gain, float playback_gain) {
+               float end_gain, float playback_gain_start,
+               float playback_gain_end) {
     const auto frame_count = byte_count / (sizeof(s16) * AUDIO_CHANNEL_COUNT);
     if (frame_count == 0) {
         return;
     }
     if (start_gain >= 0.9999f && end_gain >= 0.9999f &&
-        playback_gain >= 0.9999f && playback_gain <= 1.0001f) {
+        playback_gain_start >= 0.9999f &&
+        playback_gain_start <= 1.0001f &&
+        playback_gain_end >= 0.9999f &&
+        playback_gain_end <= 1.0001f) {
         return;
     }
 
@@ -646,6 +713,8 @@ void ApplyGain(s16* samples, size_t byte_count, float start_gain,
             : 1.f;
         const float fade_gain = std::clamp(
             start_gain + (end_gain - start_gain) * progress, 0.f, 1.f);
+        const float playback_gain = playback_gain_start +
+            (playback_gain_end - playback_gain_start) * progress;
         const float gain = fade_gain * playback_gain;
         for (size_t channel = 0; channel < AUDIO_CHANNEL_COUNT; channel++) {
             const auto index = frame * AUDIO_CHANNEL_COUNT + channel;
@@ -658,6 +727,7 @@ void ApplyGain(s16* samples, size_t byte_count, float start_gain,
 
 PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
                          u32 playing_position, u32 playing_generation,
+                         u64 playing_state,
                          PlaybackSourceCache* resume_cache) {
     std::unique_ptr<Source> source;
     const bool reused_source = resume_cache && resume_cache->Take(
@@ -699,6 +769,8 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
     u64 transition_remaining_frames = 0;
     u32 interrupted_resume_frame = resume_frame;
     PlaybackResult outcome{0, PlaybackEnd::Error, resume_frame};
+    GainEnvelope album_video_gain;
+    album_video_gain.SetImmediate(AlbumVideoGainTarget(playing_state));
 
     while (g_should_run) {
         const bool interrupted = g_output_paused ||
@@ -819,13 +891,25 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
             transition_remaining_frames = remaining_after;
         }
 
+        const auto album_video_target = AlbumVideoGainTarget(playing_state);
+        if (album_video_target != album_video_gain.target) {
+            const auto duration_ms =
+                album_video_target < album_video_gain.current
+                ? g_mid_song_fade_out_ms.load(std::memory_order_acquire)
+                : g_mid_song_fade_in_ms.load(std::memory_order_acquire);
+            album_video_gain.Retarget(album_video_target, duration_ms);
+        }
+        const auto [video_gain_start, video_gain_end] =
+            album_video_gain.Advance(output_frames);
         const auto playback_gain =
             g_global_volume.load(std::memory_order_acquire) *
             g_state_volume.load(std::memory_order_acquire);
         ApplyGain(
             static_cast<s16*>(buffer->buffer), decoded_bytes,
             std::min(fade_in_start, fade_out_start),
-            std::min(fade_in_end, fade_out_end), playback_gain);
+            std::min(fade_in_end, fade_out_end),
+            playback_gain * video_gain_start,
+            playback_gain * video_gain_end);
 
         buffer->data_size = decoded_bytes;
         rc = audoutAppendAudioOutBuffer(buffer);
@@ -868,7 +952,7 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
 
 u64 ActiveEditableStateLocked() {
     if (!g_active_session || g_active_state == applet_bgm::SilentTitleId ||
-        g_active_state == applet_bgm::StartupTitleId) {
+        applet_bgm::IsStartupState(g_active_state)) {
         return applet_bgm::SilentTitleId;
     }
     return g_active_state;
@@ -894,7 +978,7 @@ Result Initialize() {
         config::get_ost_playlist_size(applet_bgm::StartupTitleId) != 0) {
         // Claim playback before the process/scene detector starts. Falling
         // back to Home here leaked Home audio into the boot-logo sequence.
-        BeginStartup();
+        BeginStartup(applet_bgm::StartupTitleId);
     }
 
     // Best-effort HOME focus detection. pdm:qry has very few sessions;
@@ -960,7 +1044,7 @@ void TuneThreadFunc(void*) {
                     playing_state = g_active_state;
                     playing_position = g_active_session->position;
                     playing_generation = g_active_session->generation;
-                    if (playing_state == applet_bgm::StartupTitleId) {
+                    if (applet_bgm::IsStartupState(playing_state)) {
                         playing_startup_generation =
                             g_startup_generation.load(std::memory_order_acquire);
                     }
@@ -980,7 +1064,7 @@ void TuneThreadFunc(void*) {
             {
                 std::scoped_lock lk(g_mutex);
                 startup_exhausted =
-                    g_active_state == applet_bgm::StartupTitleId &&
+                    applet_bgm::IsStartupState(g_active_state) &&
                     (!g_active_session || g_active_session->Current() == nullptr);
                 if (startup_exhausted) {
                     startup_generation =
@@ -996,7 +1080,7 @@ void TuneThreadFunc(void*) {
 
         const auto playback = PlayTrack(
             play_path, resume_frame, play_serial, playing_position,
-            playing_generation,
+            playing_generation, playing_state,
             playing_state == applet_bgm::QlaunchTitleId
                 ? &home_source_cache : nullptr);
         bool startup_finished = false;
@@ -1011,7 +1095,7 @@ void TuneThreadFunc(void*) {
                 if (current && std::strcmp(current->path, play_path) == 0) {
                     if (playback.end == PlaybackEnd::Interrupted) {
                         g_active_session->resume_frame = playback.current_frame;
-                    } else if (playing_state == applet_bgm::StartupTitleId) {
+                    } else if (applet_bgm::IsStartupState(playing_state)) {
                         g_active_session->finished = true;
                         startup_finished = true;
                     } else if (playback.end == PlaybackEnd::Natural) {
@@ -1130,10 +1214,13 @@ void PmdmntThreadFunc(void*) {
                 gated_home_seen = false;
                 current_target = applet_bgm::SilentTitleId;
 
+                const auto wake_startup_state =
+                    g_separate_wake_playlist.load(std::memory_order_acquire)
+                    ? applet_bgm::WakeStartupTitleId
+                    : applet_bgm::StartupTitleId;
                 if (enabled && g_startup_on_wake &&
-                    config::get_ost_playlist_size(
-                        applet_bgm::StartupTitleId) != 0) {
-                    BeginStartup(true);
+                    config::get_ost_playlist_size(wake_startup_state) != 0) {
+                    BeginStartup(wake_startup_state, true);
                 } else {
                     CancelStartupAndRequest(
                         applet_bgm::SilentTitleId, true);
@@ -1262,7 +1349,7 @@ void Play() {
             changed = g_active_session->paused;
             g_active_session->paused = false;
             if (g_active_session->finished &&
-                g_active_state != applet_bgm::StartupTitleId &&
+                !applet_bgm::IsStartupState(g_active_state) &&
                 g_active_session->count != 0) {
                 g_active_session->position = 0;
                 g_active_session->resume_frame = 0;
@@ -1294,7 +1381,8 @@ void Next() {
     bool changed = false;
     {
         std::scoped_lock lk(g_mutex);
-        if (g_active_session && g_active_state != applet_bgm::StartupTitleId) {
+        if (g_active_session &&
+            !applet_bgm::IsStartupState(g_active_state)) {
             changed = g_active_session->Advance(true);
             if (changed) {
                 g_active_session->paused = false;
@@ -1310,7 +1398,8 @@ void Prev() {
     bool changed = false;
     {
         std::scoped_lock lk(g_mutex);
-        if (g_active_session && g_active_state != applet_bgm::StartupTitleId) {
+        if (g_active_session &&
+            !applet_bgm::IsStartupState(g_active_state)) {
             changed = g_active_session->Previous();
             if (changed) {
                 g_active_session->paused = false;
@@ -1488,7 +1577,7 @@ void Select(u32 index) {
     {
         std::scoped_lock lk(g_mutex);
         if (g_active_session && index < g_active_session->count &&
-            g_active_state != applet_bgm::StartupTitleId) {
+            !applet_bgm::IsStartupState(g_active_state)) {
             g_active_session->position = index;
             g_active_session->resume_frame = 0;
             g_active_session->paused = false;
@@ -1560,6 +1649,8 @@ void ReloadOstMisc() {
     g_mid_song_fade_in_ms = config::get_mid_song_fade_in_ms();
     g_mid_song_fade_out_ms = config::get_mid_song_fade_out_ms();
     g_startup_on_wake = config::get_startup_on_wake();
+    g_separate_wake_playlist = config::get_separate_wake_playlist();
+    g_album_video_volume = config::get_album_video_volume();
     std::scoped_lock lk(g_mutex);
     g_state_volume.store(
         g_active_state == applet_bgm::SilentTitleId

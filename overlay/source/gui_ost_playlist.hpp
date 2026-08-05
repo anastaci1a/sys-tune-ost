@@ -11,14 +11,17 @@ class OstPlaylistGui final : public tsl::Gui {
     u64 m_title_id{};
     std::string m_name;
     bool m_startup{};
+    bool m_main_startup{};
     SysTuneOverlayFrame* m_frame{};
     tsl::elm::List* m_list{};
+    tsl::elm::ListItem* m_wake_playlist_button{};
     tsl::elm::CategoryHeader* m_playlist_header{};
     tsl::elm::ListItem* m_empty_item{};
     std::vector<std::string> m_paths;
     std::vector<tsl::elm::ListItem*> m_track_items;
     u32 m_known_count{};
     u32 m_seen_revision{};
+    u32 m_wake_seen_revision{};
 
   public:
     OstPlaylistGui(u64 title_id, std::string name, bool startup);
@@ -39,4 +42,6 @@ class OstPlaylistGui final : public tsl::Gui {
     void clearPlaylist();
     void updatePlaylistSummary();
     void markPlaylistChanged();
+    void setWakePlaylistButtonVisible(bool visible);
+    void updateWakePlaylistButtonValue();
 };

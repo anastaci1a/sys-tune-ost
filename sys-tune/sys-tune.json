@@ -16,7 +16,8 @@
 	},
 	"service_host": [
 		"tune",
-		"erpt:c"
+		"erpt:c",
+		"caps:a"
 	],
 	"service_access": [
 		"*"

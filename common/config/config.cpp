@@ -359,6 +359,19 @@ void set_ost_volume(u64 tid, float value) {
         std::clamp(value, 0.f, applet_bgm::VolumeMax), CONFIG_PATH);
 }
 
+auto get_album_video_volume() -> float {
+    return std::clamp(
+        ini_getf("ost_manager", "album_video_volume", 1.f, CONFIG_PATH),
+        0.f, applet_bgm::VolumeMax);
+}
+
+void set_album_video_volume(float value) {
+    create_config_dir();
+    ini_putf(
+        "ost_manager", "album_video_volume",
+        std::clamp(value, 0.f, applet_bgm::VolumeMax), CONFIG_PATH);
+}
+
 auto get_fade_in_ms() -> u32 {
     return std::clamp<long>(ini_getl("ost_manager", "fade_in_ms", 500, CONFIG_PATH), 0, 5000);
 }
@@ -412,6 +425,16 @@ auto get_startup_on_wake() -> bool {
 void set_startup_on_wake(bool value) {
     create_config_dir();
     ini_putl("ost_manager", "startup_on_wake", value, CONFIG_PATH);
+}
+
+auto get_separate_wake_playlist() -> bool {
+    return ini_getbool(
+        "ost_manager", "separate_wake_playlist", false, CONFIG_PATH);
+}
+
+void set_separate_wake_playlist(bool value) {
+    create_config_dir();
+    ini_putl("ost_manager", "separate_wake_playlist", value, CONFIG_PATH);
 }
 
 void migrate_ost_config() {

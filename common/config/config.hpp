@@ -46,8 +46,8 @@ void set_applet_bgm_enabled(bool value);
 auto get_applet_bgm_path(u64 tid, char* out, int max_len) -> int;
 void set_applet_bgm_path(u64 tid, const char* path);
 
-// Persistent playlist and playback settings for a UI state. StartupTitleId is
-// the special random, one-shot boot/wake sound pool.
+// Persistent playlist and playback settings for a UI state. The startup IDs
+// are special random, one-shot sound pools for boot and wake.
 auto get_ost_playlist_size(u64 tid) -> u32;
 auto get_ost_playlist_item(u64 tid, u32 index, char* out, int max_len) -> int;
 struct OstPlaylistConfig {
@@ -71,6 +71,10 @@ void set_ost_repeat(u64 tid, int value);
 auto get_ost_volume(u64 tid) -> float;
 void set_ost_volume(u64 tid, float value);
 
+// Multiplier applied to Album OST playback while a movie stream is active.
+auto get_album_video_volume() -> float;
+void set_album_video_volume(float value);
+
 auto get_fade_in_ms() -> u32;
 void set_fade_in_ms(u32 value);
 auto get_fade_out_ms() -> u32;
@@ -83,6 +87,10 @@ void set_mid_song_fade_out_ms(u32 value);
 // When enabled, the Startup Sound pool also plays after system sleep.
 auto get_startup_on_wake() -> bool;
 void set_startup_on_wake(bool value);
+
+// Selects WakeStartupTitleId for wake cues without modifying either playlist.
+auto get_separate_wake_playlist() -> bool;
+void set_separate_wake_playlist(bool value);
 
 // Imports settings created by the first Applet BGM build exactly once.
 void migrate_ost_config();

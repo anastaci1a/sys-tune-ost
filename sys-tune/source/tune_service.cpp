@@ -3,6 +3,7 @@
 #include "impl/music_player.hpp"
 #include "ipc_cmd.h"
 #include "qlaunch_scene_observer.hpp"
+#include "album_video_observer.hpp"
 #include "tune_result.hpp"
 #include "tune_types.hpp"
 
@@ -10,6 +11,9 @@
 
 static_assert(
     sizeof(TuneQlaunchSceneObserverInfo) <=
+    IPC_SERVER_EXT_RESPONSE_MAX_DATA_SIZE);
+static_assert(
+    sizeof(TuneAlbumVideoObserverInfo) <=
     IPC_SERVER_EXT_RESPONSE_MAX_DATA_SIZE);
 
 #define GET_SINGLE(type, expr)            \
@@ -164,6 +168,11 @@ namespace tune {
                 case TuneIpcCmd_ResetQlaunchSceneHistory:
                     qlaunch_scene::ResetHistory();
                     return 0;
+
+                case TuneIpcCmd_GetAlbumVideoObserver:
+                    GET_SINGLE(
+                        TuneAlbumVideoObserverInfo,
+                        album_video::GetInfo);
 
                 case TuneIpcCmd_GetApiVersion:
                     *out_dataSize    = sizeof(u32);

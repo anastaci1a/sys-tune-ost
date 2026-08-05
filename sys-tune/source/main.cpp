@@ -4,6 +4,7 @@
 #include "impl/aud_wrapper.h"
 #include "impl/source.hpp"
 #include "qlaunch_scene_observer.hpp"
+#include "album_video_observer.hpp"
 #include "tune_service.hpp"
 #include "tune_result.hpp"
 
@@ -29,6 +30,7 @@ void __appInit() {
     // gives this startup thread priority over boot2 so the runtime-only future
     // MITM declaration is installed before qlaunch can acquire erpt:c.
     tune::qlaunch_scene::Initialize();
+    tune::album_video::Initialize();
     // The priority bump is only needed for the startup handshake. Restore the
     // stable build's normal main-thread priority for the rest of the process.
     svcSetThreadPriority(CUR_THREAD_HANDLE, 0x30);
@@ -48,6 +50,7 @@ void __appInit() {
 }
 
 void __appExit(void) {
+    tune::album_video::Exit();
     tune::qlaunch_scene::Exit();
     sdmc::Close();
     pm::Exit();

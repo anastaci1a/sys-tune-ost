@@ -71,6 +71,33 @@ typedef struct {
     TuneQlaunchSceneEvent history[TuneQlaunchSceneHistorySize];
 } TuneQlaunchSceneObserverInfo;
 
+typedef enum {
+    TuneAlbumVideoObserverStatus_Unavailable,
+    TuneAlbumVideoObserverStatus_Starting,
+    TuneAlbumVideoObserverStatus_Installed,
+    TuneAlbumVideoObserverStatus_AlbumConnected,
+    TuneAlbumVideoObserverStatus_ReceivingMovieData,
+    TuneAlbumVideoObserverStatus_Failed,
+} TuneAlbumVideoObserverStatus;
+
+typedef struct {
+    u32 status;
+    u32 last_result;
+    u32 query_count;
+    u32 request_count;
+    u32 movie_open_count;
+    u32 movie_read_count;
+    u32 movie_close_count;
+    u32 state_update_count;
+    u32 last_command_id;
+    u32 active_stream_count;
+    u64 album_process_id;
+    u8 video_active;
+    u8 has_signal;
+    u8 has_last_command;
+    u8 reserved[5];
+} TuneAlbumVideoObserverInfo;
+
 Result tuneInitialize();
 
 void tuneExit();
@@ -196,6 +223,11 @@ Result tuneGetQlaunchSceneObserver(TuneQlaunchSceneObserverInfo* out);
  * @brief Clear the diagnostic transition history without changing playback.
  */
 Result tuneResetQlaunchSceneHistory();
+
+/**
+ * @brief Get Album movie-stream observer diagnostics.
+ */
+Result tuneGetAlbumVideoObserver(TuneAlbumVideoObserverInfo* out);
 
 Result tuneQuit();
 
