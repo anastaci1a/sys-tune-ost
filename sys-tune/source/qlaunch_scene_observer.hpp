@@ -10,6 +10,7 @@ Result Initialize();
 void Exit();
 
 TuneQlaunchSceneObserverInfo GetInfo();
+bool TryGetCurrentScene(u8* out_scene);
 void ResetHistory();
 
 }

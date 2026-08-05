@@ -11,9 +11,17 @@ struct Target {
 };
 
 constexpr u64 QlaunchTitleId = 0x0100000000001000ULL;
-// A config/runtime-only ID. It can never collide with a retail program ID.
+// Config/runtime-only IDs. They cannot collide with retail program IDs.
 constexpr u64 StartupTitleId = UINT64_MAX;
+constexpr u64 SettingsStateId = UINT64_MAX - 1;
+constexpr u64 LockStateId = UINT64_MAX - 2;
 constexpr u64 SilentTitleId = 0;
+
+// Raw SystemAppletScene values observed repeatedly on hardware. Home keeps
+// qlaunch's real program ID so existing playlists migrate to the Home state.
+constexpr u8 QlaunchSceneHome = 0x00;
+constexpr u8 QlaunchSceneLock = 0x0A;
+constexpr u8 QlaunchSceneSettings = 0x32;
 
 constexpr u32 PlaylistMax = 64;
 constexpr u32 PathSizeMax = 256;
@@ -59,8 +67,12 @@ constexpr std::array DetectionTitleIds = {
     0x0100000000001004ULL,
 };
 
-// qlaunch implements the Home Menu, retail System Settings, and Entrance
-// (lock) screen. These internal views cannot be distinguished by process ID.
-constexpr Target QlaunchTarget{QlaunchTitleId, "Home / Settings / Lock"};
+// qlaunch implements all three views in one process. The scene observer maps
+// its internal SystemAppletScene value to these independent soundtrack IDs.
+constexpr std::array QlaunchTargets = {
+    Target{QlaunchTitleId, "Home Menu"},
+    Target{SettingsStateId, "System Settings"},
+    Target{LockStateId, "Lock Screen"},
+};
 
 }

@@ -33,7 +33,13 @@ namespace {
             return "Startup Sound";
         }
         if (title_id == applet_bgm::QlaunchTitleId) {
-            return "Home / Settings / Lock Screen OST";
+            return "Home Menu OST";
+        }
+        if (title_id == applet_bgm::SettingsStateId) {
+            return "System Settings OST";
+        }
+        if (title_id == applet_bgm::LockStateId) {
+            return "Lock Screen OST";
         }
         for (const auto& target : applet_bgm::Targets) {
             if (target.title_id == title_id) {

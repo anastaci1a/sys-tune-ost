@@ -867,6 +867,22 @@ TuneQlaunchSceneObserverInfo GetInfo() {
     return info;
 }
 
+bool TryGetCurrentScene(u8* out_scene) {
+    if (!out_scene) {
+        return false;
+    }
+
+    mutexLock(&g_info_mutex);
+    const bool has_scene = g_info.has_scene &&
+        g_info.status != TuneQlaunchObserverStatus_Unavailable &&
+        g_info.status != TuneQlaunchObserverStatus_Failed;
+    if (has_scene) {
+        *out_scene = g_info.current_scene;
+    }
+    mutexUnlock(&g_info_mutex);
+    return has_scene;
+}
+
 void ResetHistory() {
     mutexLock(&g_info_mutex);
     g_info.history_count = 0;

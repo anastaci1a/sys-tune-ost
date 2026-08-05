@@ -16,8 +16,9 @@ The master **System UI OST** switch is disabled by default. When enabled:
 - each normal playlist has persistent shuffle and repeat Off / One / All modes;
 - Startup Sound chooses one random entry once when the sysmodule starts at cold
   boot, with an optional **Include Wake from Sleep** toggle to choose a fresh
-  random entry after every system-sleep wake; it yields when it finishes or
-  when anything other than Home opens; and
+  random entry after every system-sleep wake; it may continue through the Lock
+  Screen, then yields when it finishes or when Settings, another applet, or a
+  game opens; and
 - global 0–5 second fade-in and fade-out settings smooth track, applet, pause,
   Startup, and stop transitions. These are sequential fades, not overlapping
   crossfades.
@@ -56,19 +57,24 @@ Keyboard, and several less common system applets.
 Home, retail System Settings, and the "press the same button three times"
 Entrance/Lock Screen are all internal views of
 [`qlaunch` (`0100000000001000`)](https://layoutdocs.themezer.net/guide/2-firmware-files/).
-The stable build therefore groups them under **Home / Settings / Lock**. The
-public libnx interface only exposes the user's
-[lock-screen enabled setting](https://github.com/switchbrew/libnx/blob/master/nx/include/switch/services/set.h),
-not which internal qlaunch view is currently visible.
+Process-ID detection alone therefore cannot distinguish them. This experimental
+branch additionally observes qlaunch's `SystemAppletScene` report and maps the
+three values verified repeatedly on hardware:
 
-This experimental branch tests a firmware-independent alternative. Horizon's
-error-reporting schema contains a `SystemAppletScene` byte, apparently intended
-for qlaunch to report its internal UI changes. The sysmodule observes only
-qlaunch's `erpt:c` connection through Atmosphere's MITM extension, records any
-raw scene transitions, and forwards every original request unchanged. It
-supports the legacy and 21.0.0+ ERPT context layouts, CMIF domain requests, and
-cloned SDK sessions. No scene value is assigned a playlist yet: Settings must
-first be shown to produce a distinct, repeatable value on hardware.
+- `0x00`: Home Menu
+- `0x0A`: Entrance / Lock Screen
+- `0x32`: System Settings
+
+Each now has an independent persistent playlist. Home keeps the old qlaunch
+playlist and its pause/resume behavior; Settings and Lock restart like other
+non-Home UI states. An unrecognized reported scene stays silent instead of
+being mislabeled. If the best-effort observer is unavailable or has not yet
+received a scene, qlaunch falls back to the Home playlist for compatibility.
+
+The observer touches only qlaunch's `erpt:c` connection through Atmosphere's
+MITM extension, records raw scene transitions, and forwards every original
+request unchanged. It supports the legacy and 21.0.0+ ERPT context layouts,
+CMIF domain requests, and cloned SDK sessions.
 
 HOME focus detection uses the bounded `pdm:qry` play-event approach described
 by masagrator in [upstream issue #55](https://github.com/HookedBehemoth/sys-tune/issues/55).
@@ -88,6 +94,9 @@ On first launch this build automatically imports:
 - the old startup path into the new Startup Sound pool when it points to a file.
 
 The migration is one-time and does not delete the legacy keys.
+An existing **Home / Settings / Lock** playlist remains under qlaunch's real
+program ID and therefore becomes the **Home Menu** playlist automatically;
+the new Settings and Lock playlists begin empty.
 
 ## Installation
 
@@ -109,15 +118,13 @@ supported file in the current folder. In a playlist, use **Y** to remove and
 seconds, with finer steps for short fades and progressively wider steps for
 long fades.
 
-### Experimental Qlaunch Scene Test
+### Experimental Qlaunch Scene Diagnostics
 
 After a full reboot, open **Misc Options → Qlaunch Scene Diagnostics**. The
 observer should progress from **Installed — Waiting** to **Qlaunch Connected**
-and then **Receiving Scenes**. Record **Current Raw Scene** while on Home, reset
-the history, close the overlay, open System Settings, and return to the
-diagnostics page. Repeat Settings → Home several times and once after another
-full reboot. A distinct value that repeats in both directions is suitable for
-the next playlist-integration build.
+and then **Receiving Scenes**. The history remains available to identify more
+qlaunch views in a later build. Any value not listed above is intentionally not
+assigned a soundtrack yet.
 
 The early hook uses only a runtime future-MITM declaration; it does not install
 a persistent `mitm.lst` file. If this experimental build ever disrupts boot,

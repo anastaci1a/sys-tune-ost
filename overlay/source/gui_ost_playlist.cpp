@@ -84,8 +84,7 @@ void OstPlaylistGui::populate() {
 
         if (m_title_id == applet_bgm::QlaunchTitleId) {
             m_list->addItem(new ElmTextBlock(
-                "Home, Settings, and Lock share qlaunch.\n"
-                "HOME pauses for applets, then resumes."));
+                "Home pauses for other UI states, then resumes."));
         } else {
             m_list->addItem(new ElmTextBlock(
                 "The playlist restarts whenever this applet opens."));

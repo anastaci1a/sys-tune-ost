@@ -25,7 +25,9 @@ tsl::elm::Element* AppletBgmGui::createUI() {
         "Games and regular applications stay silent."));
 
     addTarget(applet_bgm::StartupTitleId, "Startup Sound", true);
-    addTarget(applet_bgm::QlaunchTarget.title_id, applet_bgm::QlaunchTarget.name);
+    for (const auto& target : applet_bgm::QlaunchTargets) {
+        addTarget(target.title_id, target.name);
+    }
     for (const auto& target : applet_bgm::Targets) {
         addTarget(target.title_id, target.name);
     }

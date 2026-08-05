@@ -1,6 +1,7 @@
 #include "music_player.hpp"
 
 #include "applet_bgm.hpp"
+#include "../qlaunch_scene_observer.hpp"
 #include "../tune_result.hpp"
 #include "sdmc/sdmc.hpp"
 #include "pm/pm.hpp"
@@ -240,6 +241,41 @@ void RequestState(u64 state) {
     if (g_requested_state.exchange(state, std::memory_order_acq_rel) != state) {
         SignalTransition();
     }
+}
+
+u64 ResolveQlaunchState(u64 process_state) {
+    if (process_state != applet_bgm::QlaunchTitleId) {
+        return process_state;
+    }
+
+    u8 scene = 0;
+    if (!qlaunch_scene::TryGetCurrentScene(&scene)) {
+        // Preserve the stable behavior if the best-effort observer is not yet
+        // receiving events (or cannot run on a future firmware).
+        return applet_bgm::QlaunchTitleId;
+    }
+
+    switch (scene) {
+        case applet_bgm::QlaunchSceneHome:
+            return applet_bgm::QlaunchTitleId;
+        case applet_bgm::QlaunchSceneSettings:
+            return applet_bgm::SettingsStateId;
+        case applet_bgm::QlaunchSceneLock:
+            return applet_bgm::LockStateId;
+        default:
+            // Never label an unverified qlaunch scene as Home, Settings, or
+            // Lock. Diagnostics remain available so it can be mapped later.
+            return applet_bgm::SilentTitleId;
+    }
+}
+
+bool StartupMayContinue(u64 process_state, u64 resolved_state) {
+    // Lock is part of the boot/wake path, so it must not immediately cancel a
+    // Startup Sound. Unknown qlaunch scenes also remain eligible so a new or
+    // transient firmware value cannot suppress the boot sound. Settings and
+    // every explicitly opened applet do cancel it.
+    return process_state == applet_bgm::QlaunchTitleId &&
+           resolved_state != applet_bgm::SettingsStateId;
 }
 
 bool IsPlayablePath(const char* path) {
@@ -949,8 +985,10 @@ void PmdmntThreadFunc(void*) {
         }
 
         u64 target_pid = 0;
-        u64 target = applet_bgm::SilentTitleId;
-        pm::getAppletBgmTarget(&target_pid, &target, application_out_of_focus);
+        u64 process_target = applet_bgm::SilentTitleId;
+        pm::getAppletBgmTarget(
+            &target_pid, &process_target, application_out_of_focus);
+        const auto target = ResolveQlaunchState(process_target);
         g_detected_state = target;
 
         bool woke_from_sleep = false;
@@ -964,9 +1002,9 @@ void PmdmntThreadFunc(void*) {
 
         if (enabled) {
             if (g_startup_active) {
-                // Startup is allowed to finish only while HOME/qlaunch remains
-                // in front, even when the same game or applet spans a wake.
-                if (target != applet_bgm::QlaunchTitleId) {
+                // Startup can span the boot/wake Lock Screen, but opening
+                // Settings, another applet, or a game ends it immediately.
+                if (!StartupMayContinue(process_target, target)) {
                     CancelStartupAndRequest(target);
                 }
             } else if (target != current_target) {
