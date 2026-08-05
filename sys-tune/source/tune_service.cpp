@@ -2,10 +2,15 @@
 
 #include "impl/music_player.hpp"
 #include "ipc_cmd.h"
+#include "qlaunch_scene_observer.hpp"
 #include "tune_result.hpp"
 #include "tune_types.hpp"
 
 #include <nxExt.h>
+
+static_assert(
+    sizeof(TuneQlaunchSceneObserverInfo) <=
+    IPC_SERVER_EXT_RESPONSE_MAX_DATA_SIZE);
 
 #define GET_SINGLE(type, expr)            \
     ({                                    \
@@ -147,8 +152,17 @@ namespace tune {
                 case TuneIpcCmd_GetActiveOstState:
                     GET_SINGLE(u64, impl::GetActiveOstState);
 
+                case TuneIpcCmd_GetQlaunchSceneObserver:
+                    GET_SINGLE(
+                        TuneQlaunchSceneObserverInfo,
+                        qlaunch_scene::GetInfo);
+
                 case TuneIpcCmd_QuitServer:
                     running = false;
+                    return 0;
+
+                case TuneIpcCmd_ResetQlaunchSceneHistory:
+                    qlaunch_scene::ResetHistory();
                     return 0;
 
                 case TuneIpcCmd_GetApiVersion:

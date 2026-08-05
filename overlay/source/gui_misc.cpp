@@ -3,6 +3,7 @@
 #include "elm_overlayframe.hpp"
 #include "elm_text_block.hpp"
 #include "elm_volume.hpp"
+#include "gui_qlaunch_scene_diagnostics.hpp"
 #include "config/config.hpp"
 #include "tune.h"
 
@@ -91,6 +92,20 @@ tsl::elm::Element* MiscGui::createUI() {
         tuneSetVolume(static_cast<float>(value) / static_cast<float>(VolumeSteps - 1));
     });
     list->addItem(volume_slider);
+
+    list->addItem(new tsl::elm::CategoryHeader("Experimental"));
+    list->addItem(new ElmTextBlock(
+        "Inspect raw qlaunch scene changes.\n"
+        "This diagnostic does not alter playlists."));
+    auto diagnostics = new tsl::elm::ListItem("Qlaunch Scene Diagnostics");
+    diagnostics->setClickListener([](u64 keys) {
+        if (keys & HidNpadButton_A) {
+            tsl::changeTo<QlaunchSceneDiagnosticsGui>();
+            return true;
+        }
+        return false;
+    });
+    list->addItem(diagnostics);
 
     frame->setDescription("\uE0E1 Back   \uE07A/\uE079 Adjust");
     frame->setContent(list);

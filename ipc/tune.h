@@ -34,6 +34,43 @@ typedef struct {
     u32 total_frames;
 } TuneCurrentStats;
 
+enum {
+    TuneQlaunchSceneHistorySize = 8,
+};
+
+typedef enum {
+    TuneQlaunchObserverStatus_Unavailable,
+    TuneQlaunchObserverStatus_Starting,
+    TuneQlaunchObserverStatus_Installed,
+    TuneQlaunchObserverStatus_QlaunchConnected,
+    TuneQlaunchObserverStatus_ReceivingScenes,
+    TuneQlaunchObserverStatus_Failed,
+} TuneQlaunchObserverStatus;
+
+typedef struct {
+    u64 tick;
+    u8 scene;
+    u8 reserved[7];
+} TuneQlaunchSceneEvent;
+
+typedef struct {
+    u32 status;
+    u32 last_result;
+    u32 query_count;
+    u32 request_count;
+    u32 context_command_count;
+    u32 scene_update_count;
+    u32 last_command_id;
+    u32 reserved0;
+    u64 qlaunch_process_id;
+    u8 current_scene;
+    u8 has_scene;
+    u8 history_count;
+    u8 has_last_command;
+    u8 reserved[4];
+    TuneQlaunchSceneEvent history[TuneQlaunchSceneHistorySize];
+} TuneQlaunchSceneObserverInfo;
+
 Result tuneInitialize();
 
 void tuneExit();
@@ -149,6 +186,16 @@ Result tuneReloadAppletBgm();
 Result tuneReloadOstState(u64 title_id);
 Result tuneReloadOstMisc();
 Result tuneGetActiveOstState(u64* title_id);
+
+/**
+ * @brief Get experimental qlaunch SystemAppletScene observer diagnostics.
+ */
+Result tuneGetQlaunchSceneObserver(TuneQlaunchSceneObserverInfo* out);
+
+/**
+ * @brief Clear the diagnostic transition history without changing playback.
+ */
+Result tuneResetQlaunchSceneHistory();
 
 Result tuneQuit();
 

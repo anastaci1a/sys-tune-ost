@@ -34,8 +34,10 @@ enum TuneIpcCmd {
     TuneIpcCmd_ReloadOstState = 46,
     TuneIpcCmd_ReloadOstMisc = 47,
     TuneIpcCmd_GetActiveOstState = 48,
+    TuneIpcCmd_GetQlaunchSceneObserver = 49,
 
     TuneIpcCmd_QuitServer = 50,
+    TuneIpcCmd_ResetQlaunchSceneHistory = 51,
 
     TuneIpcCmd_GetApiVersion = 5000,
 };

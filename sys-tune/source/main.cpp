@@ -3,6 +3,7 @@
 #include "pm/pm.hpp"
 #include "impl/aud_wrapper.h"
 #include "impl/source.hpp"
+#include "qlaunch_scene_observer.hpp"
 #include "tune_service.hpp"
 #include "tune_result.hpp"
 
@@ -24,6 +25,13 @@ void __libnx_initheap(void) {
 
 void __appInit() {
     R_ABORT_UNLESS(smInitialize());
+    // This is diagnostic and deliberately best-effort. The experimental NPDM
+    // gives this startup thread priority over boot2 so the runtime-only future
+    // MITM declaration is installed before qlaunch can acquire erpt:c.
+    tune::qlaunch_scene::Initialize();
+    // The priority bump is only needed for the startup handshake. Restore the
+    // stable build's normal main-thread priority for the rest of the process.
+    svcSetThreadPriority(CUR_THREAD_HANDLE, 0x30);
     R_ABORT_UNLESS(setsysInitialize());
     {
         SetSysFirmwareVersion version;
@@ -40,6 +48,7 @@ void __appInit() {
 }
 
 void __appExit(void) {
+    tune::qlaunch_scene::Exit();
     sdmc::Close();
     pm::Exit();
     audWrapperExit();

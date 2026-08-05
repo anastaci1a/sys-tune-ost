@@ -154,6 +154,14 @@ Result tuneGetActiveOstState(u64* title_id) {
     return serviceDispatchOut(&g_tune, TuneIpcCmd_GetActiveOstState, *title_id);
 }
 
+Result tuneGetQlaunchSceneObserver(TuneQlaunchSceneObserverInfo* out) {
+    return serviceDispatchOut(&g_tune, TuneIpcCmd_GetQlaunchSceneObserver, *out);
+}
+
+Result tuneResetQlaunchSceneHistory() {
+    return serviceDispatch(&g_tune, TuneIpcCmd_ResetQlaunchSceneHistory);
+}
+
 Result tuneQuit() {
     return serviceDispatch(&g_tune, TuneIpcCmd_QuitServer);
 }

@@ -56,10 +56,19 @@ Keyboard, and several less common system applets.
 Home, retail System Settings, and the "press the same button three times"
 Entrance/Lock Screen are all internal views of
 [`qlaunch` (`0100000000001000`)](https://layoutdocs.themezer.net/guide/2-firmware-files/).
-They therefore share **Home / Settings / Lock**. The public libnx interface only
-exposes the user's [lock-screen enabled setting](https://github.com/switchbrew/libnx/blob/master/nx/include/switch/services/set.h),
-not which internal qlaunch view is currently visible. Separating those views
-reliably would require a firmware-specific qlaunch hook.
+The stable build therefore groups them under **Home / Settings / Lock**. The
+public libnx interface only exposes the user's
+[lock-screen enabled setting](https://github.com/switchbrew/libnx/blob/master/nx/include/switch/services/set.h),
+not which internal qlaunch view is currently visible.
+
+This experimental branch tests a firmware-independent alternative. Horizon's
+error-reporting schema contains a `SystemAppletScene` byte, apparently intended
+for qlaunch to report its internal UI changes. The sysmodule observes only
+qlaunch's `erpt:c` connection through Atmosphere's MITM extension, records any
+raw scene transitions, and forwards every original request unchanged. It
+supports the legacy and 21.0.0+ ERPT context layouts, CMIF domain requests, and
+cloned SDK sessions. No scene value is assigned a playlist yet: Settings must
+first be shown to produce a distinct, repeatable value on hardware.
 
 HOME focus detection uses the bounded `pdm:qry` play-event approach described
 by masagrator in [upstream issue #55](https://github.com/HookedBehemoth/sys-tune/issues/55).
@@ -100,12 +109,26 @@ supported file in the current folder. In a playlist, use **Y** to remove and
 seconds, with finer steps for short fades and progressively wider steps for
 long fades.
 
+### Experimental Qlaunch Scene Test
+
+After a full reboot, open **Misc Options → Qlaunch Scene Diagnostics**. The
+observer should progress from **Installed — Waiting** to **Qlaunch Connected**
+and then **Receiving Scenes**. Record **Current Raw Scene** while on Home, reset
+the history, close the overlay, open System Settings, and return to the
+diagnostics page. Repeat Settings → Home several times and once after another
+full reboot. A distinct value that repeats in both directions is suitable for
+the next playlist-integration build.
+
+The early hook uses only a runtime future-MITM declaration; it does not install
+a persistent `mitm.lst` file. If this experimental build ever disrupts boot,
+power off and restore the stable sysmodule and overlay from the previous ZIP.
+
 Playlist moves, removals, and additions update rows in place without rebuilding
 the menu or resetting its cursor. Playback reload is deferred until leaving the
 playlist editor, hiding the overlay, or closing it, so a sequence of edits does
 not repeatedly interrupt the active soundtrack.
 
-The overlay and sysmodule use API version 8. Install both from the same build;
+The overlay and sysmodule use API version 9. Install both from the same build;
 an older overlay will correctly report the sysmodule as unsupported, and vice
 versa.
 
