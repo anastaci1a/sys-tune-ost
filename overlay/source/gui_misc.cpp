@@ -88,6 +88,14 @@ tsl::elm::Element* MiscGui::createUI() {
         },
         1.f));
 
+    list->addItem(new tsl::elm::CategoryHeader("Loading Screen"));
+    list->addItem(new ElmTextBlock(
+        "Waits after launch detection before\n"
+        "starting the Loading Screen OST."));
+    list->addItem(MakeDurationSlider(
+        "Start Delay", config::get_loading_start_delay_ms(),
+        config::set_loading_start_delay_ms));
+
     list->addItem(new tsl::elm::CategoryHeader("Track Boundaries"));
     list->addItem(new ElmTextBlock(
         "Used when tracks start or end naturally.\n"

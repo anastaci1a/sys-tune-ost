@@ -65,7 +65,10 @@ void __appExit(void) {
 namespace {
 
     alignas(0x1000) u8 gpioThreadBuffer[0x1000];
-    alignas(0x1000) u8 pmdmntThreadBuffer[0x1000];
+    // Routing now samples HID and several independent UI observers. Keep
+    // enough headroom that an unusually deep service call cannot turn into a
+    // stack-overflow freeze on the detector thread.
+    alignas(0x1000) u8 pmdmntThreadBuffer[0x3000];
     alignas(0x1000) u8 tuneThreadBuffer[0x6000];
 
 }

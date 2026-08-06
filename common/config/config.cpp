@@ -385,6 +385,18 @@ void set_quick_settings_volume(float value) {
         std::clamp(value, 0.f, 1.f), CONFIG_PATH);
 }
 
+auto get_loading_start_delay_ms() -> u32 {
+    return std::clamp<long>(ini_getl(
+        "ost_manager", "loading_start_delay_ms", 500, CONFIG_PATH), 0, 5000);
+}
+
+void set_loading_start_delay_ms(u32 value) {
+    create_config_dir();
+    ini_putl(
+        "ost_manager", "loading_start_delay_ms",
+        std::min(value, 5000u), CONFIG_PATH);
+}
+
 auto get_fade_in_ms() -> u32 {
     return std::clamp<long>(ini_getl("ost_manager", "fade_in_ms", 150, CONFIG_PATH), 0, 5000);
 }

@@ -75,6 +75,15 @@ constexpr std::array DetectionTitleIds = {
     0x0100000000001004ULL,
 };
 
+constexpr bool IsDetectedAppletTitleId(u64 title_id) {
+    for (const auto detected_title_id : DetectionTitleIds) {
+        if (detected_title_id == title_id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // qlaunch implements all three views in one process. The scene observer maps
 // its internal SystemAppletScene value to these independent soundtrack IDs.
 constexpr std::array QlaunchTargets = {

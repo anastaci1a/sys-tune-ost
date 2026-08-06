@@ -35,6 +35,7 @@ constexpr u8 PDM_POWER_STATE_SLEEP_MODE_ON = 2;
 constexpr u8 PDM_POWER_STATE_SLEEP_MODE_OFF = 3;
 constexpr s32 PDM_EVENT_BATCH_SIZE = 16;
 constexpr u64 BOOT_WAKE_HOME_STABLE_NS = 1'500'000'000ULL;
+constexpr u64 LIBRARY_FOCUS_SIGNAL_FRESH_NS = 2'000'000'000ULL;
 
 struct OstTrack {
     char path[applet_bgm::PathSizeMax]{};
@@ -248,6 +249,7 @@ std::atomic<u32> g_fade_in_ms = 150;
 std::atomic<u32> g_fade_out_ms = 0;
 std::atomic<u32> g_mid_song_fade_in_ms = 300;
 std::atomic<u32> g_mid_song_fade_out_ms = 500;
+std::atomic<u32> g_loading_start_delay_ms = 500;
 
 std::atomic<float> g_global_volume = 1.f;
 std::atomic<float> g_state_volume = 1.f;
@@ -700,8 +702,7 @@ float AlbumVideoGainTarget(u64 playing_state) {
 
 float QuickSettingsGainTarget() {
     const auto snapshot = ui_activity::GetSnapshot();
-    return snapshot.availability == ui_activity::Availability::Active &&
-           snapshot.quick_settings_open
+    return snapshot.input_available && snapshot.quick_settings_open
         ? g_quick_settings_volume.load(std::memory_order_acquire)
         : 1.f;
 }
@@ -1042,6 +1043,7 @@ void Exit() {
 }
 
 void Finalize() {
+    ui_activity::Exit();
     if (g_pdmqry_available) {
         pdmqryExit();
         g_pdmqry_available = false;
@@ -1188,6 +1190,16 @@ void PmdmntThreadFunc(void*) {
     bool enabled = config::get_applet_bgm_enabled();
     u64 current_target = UINT64_MAX;
     bool sleeping = false;
+    bool previous_loading_active = false;
+    u64 loading_started_tick = 0;
+    u64 tracked_library_applet = applet_bgm::SilentTitleId;
+    u64 tracked_library_applet_pid = 0;
+    bool library_applet_home_override = false;
+    bool pending_home_fallback = false;
+    bool pending_home_fallback_value = false;
+    u64 pending_home_fallback_tick = 0;
+    u32 last_home_short_press_count = 0;
+    u32 last_library_focus_update_count = 0;
     // The initial power-on event belongs to cold boot, whose Startup Sound is
     // already claimed in Initialize(). A real sleep event unlatches wake.
     bool wake_latched = true;
@@ -1213,6 +1225,17 @@ void PmdmntThreadFunc(void*) {
 
         ui_activity::Poll(application_pid, application_tid);
         const auto ui_activity_snapshot = ui_activity::GetSnapshot();
+        const bool loading_active =
+            ui_activity_snapshot.availability ==
+                ui_activity::Availability::Active &&
+            ui_activity_snapshot.application_loading;
+        const auto routing_tick = armGetSystemTick();
+        if (loading_active && !previous_loading_active) {
+            loading_started_tick = routing_tick;
+        } else if (!loading_active) {
+            loading_started_tick = 0;
+        }
+        previous_loading_active = loading_active;
         const bool application_out_of_focus =
             ui_activity_snapshot.availability ==
                 ui_activity::Availability::Active &&
@@ -1222,14 +1245,108 @@ void PmdmntThreadFunc(void*) {
         u64 process_target = applet_bgm::SilentTitleId;
         pm::getAppletBgmTarget(
             &target_pid, &process_target, application_out_of_focus);
+
+        const auto detected_process_target = process_target;
+        if (applet_bgm::IsDetectedAppletTitleId(
+                detected_process_target)) {
+            if (tracked_library_applet != detected_process_target ||
+                tracked_library_applet_pid != target_pid) {
+                tracked_library_applet = detected_process_target;
+                tracked_library_applet_pid = target_pid;
+                pending_home_fallback = false;
+                last_home_short_press_count =
+                    ui_activity_snapshot.home_short_press_count;
+                last_library_focus_update_count =
+                    ui_activity_snapshot.library_applet_focus_update_count;
+                const bool matching_focus_signal =
+                    ui_activity_snapshot.has_library_applet_signal &&
+                    ui_activity_snapshot.library_applet_program_id ==
+                        detected_process_target;
+                const bool focus_signal_is_fresh = matching_focus_signal &&
+                    ui_activity_snapshot.last_library_applet_event_tick != 0 &&
+                    armTicksToNs(
+                        routing_tick -
+                        ui_activity_snapshot.last_library_applet_event_tick) <=
+                        LIBRARY_FOCUS_SIGNAL_FRESH_NS;
+                // A PDM focus record has no process ID. Do not let an old
+                // OutOfFocus record from a previous instance make a newly
+                // opened applet look like Home until its new InFocus record
+                // arrives.
+                library_applet_home_override = focus_signal_is_fresh &&
+                    !ui_activity_snapshot.library_applet_foreground;
+            } else {
+                const bool focus_updated =
+                    ui_activity_snapshot.library_applet_focus_update_count !=
+                        last_library_focus_update_count;
+                if (focus_updated) {
+                    last_library_focus_update_count =
+                        ui_activity_snapshot.library_applet_focus_update_count;
+                    if (ui_activity_snapshot.library_applet_program_id ==
+                        detected_process_target) {
+                        library_applet_home_override =
+                            !ui_activity_snapshot.library_applet_foreground;
+                        pending_home_fallback = false;
+                    }
+                }
+
+                if (ui_activity_snapshot.home_short_press_count !=
+                    last_home_short_press_count) {
+                    last_home_short_press_count =
+                        ui_activity_snapshot.home_short_press_count;
+                    bool focus_event_matches_press = false;
+                    if (ui_activity_snapshot.has_library_applet_signal &&
+                        ui_activity_snapshot.library_applet_program_id ==
+                            detected_process_target &&
+                        ui_activity_snapshot.last_home_short_press_tick != 0 &&
+                        ui_activity_snapshot.last_library_applet_event_tick !=
+                            0) {
+                        const auto first_tick = std::min(
+                            ui_activity_snapshot.last_home_short_press_tick,
+                            ui_activity_snapshot.last_library_applet_event_tick);
+                        const auto last_tick = std::max(
+                            ui_activity_snapshot.last_home_short_press_tick,
+                            ui_activity_snapshot.last_library_applet_event_tick);
+                        focus_event_matches_press =
+                            armTicksToNs(last_tick - first_tick) <=
+                                500'000'000ULL;
+                    }
+                    if (!focus_event_matches_press) {
+                        pending_home_fallback = true;
+                        pending_home_fallback_value =
+                            !library_applet_home_override;
+                        pending_home_fallback_tick = routing_tick;
+                    }
+                }
+
+                if (pending_home_fallback &&
+                    armTicksToNs(
+                        routing_tick - pending_home_fallback_tick) >=
+                        200'000'000ULL) {
+                    library_applet_home_override =
+                        pending_home_fallback_value;
+                    pending_home_fallback = false;
+                }
+            }
+
+            if (library_applet_home_override) {
+                process_target = applet_bgm::QlaunchTitleId;
+            }
+        } else {
+            tracked_library_applet = applet_bgm::SilentTitleId;
+            tracked_library_applet_pid = 0;
+            library_applet_home_override = false;
+            pending_home_fallback = false;
+            last_home_short_press_count =
+                ui_activity_snapshot.home_short_press_count;
+            last_library_focus_update_count =
+                ui_activity_snapshot.library_applet_focus_update_count;
+        }
+
         const bool loading_can_own =
             process_target == applet_bgm::QlaunchTitleId ||
             (process_target == applet_bgm::SilentTitleId &&
              target_pid != 0 && target_pid == application_pid);
-        if (loading_can_own &&
-            ui_activity_snapshot.availability ==
-                ui_activity::Availability::Active &&
-            ui_activity_snapshot.application_loading) {
+        if (loading_can_own && loading_active) {
             process_target = applet_bgm::LoadingStateId;
         } else if (process_target == applet_bgm::QlaunchTitleId &&
             ui_activity_snapshot.availability ==
@@ -1279,6 +1396,7 @@ void PmdmntThreadFunc(void*) {
         }
 
         if (power_transitions.last == PowerTransition::Sleep) {
+            ui_activity::CloseQuickSettings();
             sleeping = true;
             wake_latched = false;
             home_scene_gate = HomeSceneGate::None;
@@ -1291,6 +1409,7 @@ void PmdmntThreadFunc(void*) {
                 CancelStartupAndRequest(applet_bgm::SilentTitleId, true);
             }
         } else if (power_transitions.last == PowerTransition::Wake) {
+            ui_activity::CloseQuickSettings();
             const bool new_wake = coordinated_power_transition ||
                 !wake_latched || power_transitions.saw_sleep;
             sleeping = false;
@@ -1324,6 +1443,17 @@ void PmdmntThreadFunc(void*) {
         u64 target = sleeping || power_audio_hold
             ? applet_bgm::SilentTitleId
             : ResolveQlaunchState(process_target, scene_snapshot);
+
+        if (target == applet_bgm::LoadingStateId &&
+            loading_started_tick != 0) {
+            const auto delay_ns = static_cast<u64>(
+                g_loading_start_delay_ms.load(std::memory_order_acquire)) *
+                1'000'000ULL;
+            if (armTicksToNs(routing_tick - loading_started_tick) <
+                delay_ns) {
+                target = applet_bgm::SilentTitleId;
+            }
+        }
 
         if (!sleeping && !power_audio_hold) {
             const bool scene_ready =
@@ -1795,6 +1925,7 @@ void ReloadOstMisc() {
     g_fade_out_ms = config::get_fade_out_ms();
     g_mid_song_fade_in_ms = config::get_mid_song_fade_in_ms();
     g_mid_song_fade_out_ms = config::get_mid_song_fade_out_ms();
+    g_loading_start_delay_ms = config::get_loading_start_delay_ms();
     g_startup_on_wake = config::get_startup_on_wake();
     g_separate_wake_playlist = config::get_separate_wake_playlist();
     g_album_video_volume = config::get_album_video_volume();

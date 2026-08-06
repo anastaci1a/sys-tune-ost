@@ -47,7 +47,7 @@ const char* AppletText(u32 applet_id) {
         case AppletId_application:
             return "Application";
         case AppletId_OverlayApplet:
-            return "Quick Settings";
+            return "Overlay / Launch UI";
         default:
             return "Other";
     }
@@ -85,12 +85,17 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
 
     list->addItem(new tsl::elm::CategoryHeader("UI Activity Observer"));
     list->addItem(new ElmTextBlock(
-        "Tracks Quick Settings and game startup.\n"
-        "No scene ID or fixed delay is used."));
+        "Tracks HOME input, applet focus, and\n"
+        "the application launch animation."));
     m_status = new tsl::elm::ListItem("Observer Status");
     m_result = new tsl::elm::ListItem("Last Result");
     list->addItem(m_status);
     list->addItem(m_result);
+
+    m_input_status = new tsl::elm::ListItem("Input Status");
+    m_input_result = new tsl::elm::ListItem("Input Result");
+    list->addItem(m_input_status);
+    list->addItem(m_input_result);
 
     auto reset = new tsl::elm::ListItem("Reset Signal History");
     reset->setClickListener([this, frame](u64 keys) {
@@ -109,17 +114,31 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
     list->addItem(reset);
 
     list->addItem(new tsl::elm::CategoryHeader("Quick Settings"));
-    m_quick_settings_signal = new tsl::elm::ListItem("Signal");
+    m_quick_settings_signal = new tsl::elm::ListItem("HOME Signal");
+    m_home_held = new tsl::elm::ListItem("HOME Button");
+    m_home_short_presses = new tsl::elm::ListItem("Short Presses");
+    m_home_long_presses = new tsl::elm::ListItem("Long Presses");
     m_quick_settings = new tsl::elm::ListItem("Panel State");
     m_quick_settings_opens = new tsl::elm::ListItem("Open Signals");
     m_quick_settings_closes = new tsl::elm::ListItem("Close Signals");
+    m_quick_settings_home_closes = new tsl::elm::ListItem("HOME Exits");
+    m_quick_settings_b_closes = new tsl::elm::ListItem("B Exits");
+    m_quick_settings_touch_closes = new tsl::elm::ListItem("Touch Exits");
     list->addItem(m_quick_settings_signal);
+    list->addItem(m_home_held);
+    list->addItem(m_home_short_presses);
+    list->addItem(m_home_long_presses);
     list->addItem(m_quick_settings);
     list->addItem(m_quick_settings_opens);
     list->addItem(m_quick_settings_closes);
+    list->addItem(m_quick_settings_home_closes);
+    list->addItem(m_quick_settings_b_closes);
+    list->addItem(m_quick_settings_touch_closes);
 
     list->addItem(new tsl::elm::CategoryHeader("Loading Screen"));
-    m_loading_signal = new tsl::elm::ListItem("Signal");
+    m_loading_signal = new tsl::elm::ListItem("Application Signal");
+    m_loading_overlay_signal = new tsl::elm::ListItem("Launch UI Signal");
+    m_loading_overlay = new tsl::elm::ListItem("Launch UI Lifetime");
     m_loading = new tsl::elm::ListItem("Loading State");
     m_handoff = new tsl::elm::ListItem("In-Game Handoff");
     m_loading_starts = new tsl::elm::ListItem("Loading Starts");
@@ -127,6 +146,8 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
     m_application_pid = new tsl::elm::ListItem("Application PID");
     m_application_program = new tsl::elm::ListItem("Application Program");
     list->addItem(m_loading_signal);
+    list->addItem(m_loading_overlay_signal);
+    list->addItem(m_loading_overlay);
     list->addItem(m_loading);
     list->addItem(m_handoff);
     list->addItem(m_loading_starts);
@@ -145,6 +166,18 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
     list->addItem(m_application_out_of_focus);
     list->addItem(m_application_background);
     list->addItem(m_application_exits);
+
+    list->addItem(new tsl::elm::CategoryHeader("Library Applet Focus"));
+    m_library_signal = new tsl::elm::ListItem("Signal");
+    m_library_foreground = new tsl::elm::ListItem("Visible State");
+    m_library_program = new tsl::elm::ListItem("Latest Program");
+    m_library_focuses = new tsl::elm::ListItem("Focus Events");
+    m_library_out_of_focus = new tsl::elm::ListItem("Background Events");
+    list->addItem(m_library_signal);
+    list->addItem(m_library_foreground);
+    list->addItem(m_library_program);
+    list->addItem(m_library_focuses);
+    list->addItem(m_library_out_of_focus);
 
     list->addItem(new tsl::elm::CategoryHeader("Latest PDM Event"));
     m_latest_type = new tsl::elm::ListItem("Event Type");
@@ -179,18 +212,39 @@ void UiActivityDiagnosticsGui::refresh() {
         info.status != TuneUiActivityObserverStatus_Active);
     SetValue(m_result, ResultText(info.last_result),
         R_SUCCEEDED(info.last_result));
+    SetValue(m_input_status, StatusText(info.input_status),
+        info.input_status != TuneUiActivityObserverStatus_Active);
+    SetValue(m_input_result, ResultText(info.input_last_result),
+        R_SUCCEEDED(info.input_last_result));
     SetValue(m_quick_settings_signal,
-        info.has_overlay_signal ? "Seen" : "Waiting",
-        !info.has_overlay_signal);
+        info.has_home_button_signal ? "Seen" : "Waiting",
+        !info.has_home_button_signal);
+    SetValue(m_home_held,
+        info.home_button_held ? "Held" : "Released");
+    SetValue(m_home_short_presses,
+        std::to_string(info.home_short_press_count));
+    SetValue(m_home_long_presses,
+        std::to_string(info.home_long_press_count));
     SetValue(m_quick_settings,
         info.quick_settings_open ? "Open" : "Closed");
     SetValue(m_quick_settings_opens,
         std::to_string(info.quick_settings_open_count));
     SetValue(m_quick_settings_closes,
         std::to_string(info.quick_settings_close_count));
+    SetValue(m_quick_settings_home_closes,
+        std::to_string(info.quick_settings_home_close_count));
+    SetValue(m_quick_settings_b_closes,
+        std::to_string(info.quick_settings_b_close_count));
+    SetValue(m_quick_settings_touch_closes,
+        std::to_string(info.quick_settings_touch_close_count));
     SetValue(m_loading_signal,
         info.has_application_signal ? "Seen" : "Waiting",
         !info.has_application_signal);
+    SetValue(m_loading_overlay_signal,
+        info.has_overlay_signal ? "Seen" : "Waiting",
+        !info.has_overlay_signal);
+    SetValue(m_loading_overlay,
+        info.loading_overlay_active ? "Holding" : "Inactive");
     SetValue(m_loading, info.loading_active ? "Active" : "Inactive");
     SetValue(m_handoff,
         info.application_handoff_active ? "Silent" : "Inactive");
@@ -215,6 +269,19 @@ void UiActivityDiagnosticsGui::refresh() {
         std::to_string(info.application_background_count));
     SetValue(m_application_exits,
         std::to_string(info.application_exit_count));
+    SetValue(m_library_signal,
+        info.has_library_applet_signal ? "Seen" : "Waiting",
+        !info.has_library_applet_signal);
+    SetValue(m_library_foreground,
+        info.library_applet_foreground ? "Applet" : "Home / Other");
+    SetValue(m_library_program,
+        info.last_library_applet_program_id
+            ? HexText(info.last_library_applet_program_id) : "None",
+        info.last_library_applet_program_id == 0);
+    SetValue(m_library_focuses,
+        std::to_string(info.library_applet_in_focus_count));
+    SetValue(m_library_out_of_focus,
+        std::to_string(info.library_applet_out_of_focus_count));
     SetValue(m_latest_type,
         info.has_last_event ? EventTypeText(info.last_event_type) : "Not Seen",
         !info.has_last_event);
