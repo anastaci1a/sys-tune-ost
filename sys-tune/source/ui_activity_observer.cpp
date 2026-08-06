@@ -28,7 +28,6 @@ bool g_application_backgrounded{};
 bool g_application_internal_out_of_focus{};
 bool g_application_slot_baselined{};
 bool g_hid_available{};
-bool g_hidsys_initialized{};
 bool g_home_baselined{};
 bool g_home_held{};
 bool g_home_long_reported{};
@@ -532,7 +531,6 @@ void Initialize(bool pdm_available) {
     g_application_internal_out_of_focus = false;
     g_application_slot_baselined = false;
     g_hid_available = false;
-    g_hidsys_initialized = false;
     g_home_baselined = false;
     g_home_held = false;
     g_home_long_reported = false;
@@ -565,23 +563,16 @@ void Initialize(bool pdm_available) {
         return;
     }
 
-    // These activations are intentionally best-effort. AM normally owns the
-    // system-button feeds already, and a failed optional input source must not
-    // turn into a fatal boot path for the audio sysmodule.
-    if (R_SUCCEEDED(hidsysInitialize())) {
-        g_hidsys_initialized = true;
-        hidsysActivateHomeButton();
-    }
+    // AM owns and activates the global HOME-button feed. Observe that shared
+    // memory passively instead of re-activating the AM-owned facility from a
+    // second sysmodule. If AM has not exposed samples, the optional Quick
+    // Settings detector simply remains unavailable in diagnostics.
     ActivateNpadSafely();
     ActivateTouchScreenSafely();
 }
 
 void Exit() {
     CloseQuickSettings();
-    if (g_hidsys_initialized) {
-        hidsysExit();
-        g_hidsys_initialized = false;
-    }
     if (g_hid_available) {
         hidExit();
         g_hid_available = false;

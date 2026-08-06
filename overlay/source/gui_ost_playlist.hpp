@@ -14,6 +14,7 @@ class OstPlaylistGui final : public tsl::Gui {
     bool m_main_startup{};
     SysTuneOverlayFrame* m_frame{};
     tsl::elm::List* m_list{};
+    tsl::elm::ToggleListItem* m_separate_wake_toggle{};
     tsl::elm::ListItem* m_wake_playlist_button{};
     tsl::elm::CategoryHeader* m_playlist_header{};
     tsl::elm::ListItem* m_empty_item{};
@@ -42,6 +43,7 @@ class OstPlaylistGui final : public tsl::Gui {
     void clearPlaylist();
     void updatePlaylistSummary();
     void markPlaylistChanged();
+    void setWakeControlsVisible(bool visible);
     void setWakePlaylistButtonVisible(bool visible);
     void updateWakePlaylistButtonValue();
 };

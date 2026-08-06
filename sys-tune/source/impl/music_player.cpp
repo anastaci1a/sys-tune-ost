@@ -298,14 +298,16 @@ void RequestStateAndDiscardAudio(u64 state) {
 
 u64 ResolveQlaunchState(
     u64 process_state, const qlaunch_scene::SceneSnapshot& snapshot) {
-    // qlaunch can visibly cover a still-running game or library applet. Its
-    // verified Lock/Settings scenes therefore take precedence over process
-    // presence; Home does not, because the underlying applet may be in front.
+    // Lock can visibly cover a still-running game or library applet and must
+    // always win. Settings is different: qlaunch can retain its Settings scene
+    // while a submenu applet (Mii Editor, Network Connection, Amiibo, etc.) is
+    // actually in front, so a detected applet process must get first refusal.
     if (snapshot.availability == qlaunch_scene::SceneAvailability::Ready) {
         if (snapshot.scene == applet_bgm::QlaunchSceneLock) {
             return applet_bgm::LockStateId;
         }
-        if (snapshot.scene == applet_bgm::QlaunchSceneSettings) {
+        if (snapshot.scene == applet_bgm::QlaunchSceneSettings &&
+            !applet_bgm::IsDetectedAppletTitleId(process_state)) {
             return applet_bgm::SettingsStateId;
         }
     }
@@ -489,6 +491,8 @@ void ActivateStateLocked(u64 state, bool force_reload) {
         LoadSession(g_startup_session, state, true);
         g_active_session = &g_startup_session;
     } else if (state == applet_bgm::QlaunchTitleId) {
+        const bool returning_to_home =
+            g_active_state != applet_bgm::QlaunchTitleId;
         if (!g_home_initialized || force_reload) {
             LoadSession(g_home_session, state, false);
             g_home_initialized = true;
@@ -497,6 +501,12 @@ void ActivateStateLocked(u64 state, bool force_reload) {
             // Refresh repeat without rebuilding its retained queue/position.
             g_home_session.repeat =
                 static_cast<RepeatMode>(config::get_ost_repeat(state));
+        }
+        // Pause is a local Home-session control, not a state that survives a
+        // trip through another applet. Preserve the queue, track, and decoder
+        // position, but let the normal mid-song fade resume it on re-entry.
+        if (returning_to_home) {
+            g_home_session.paused = false;
         }
         g_active_session = &g_home_session;
     } else {

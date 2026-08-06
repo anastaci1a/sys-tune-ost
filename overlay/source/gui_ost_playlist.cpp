@@ -85,23 +85,13 @@ void OstPlaylistGui::populate() {
         auto startup_on_wake = new tsl::elm::ToggleListItem(
             "Include Wake from Sleep", config::get_startup_on_wake(),
             "On", "Off");
-        startup_on_wake->setStateChangedListener([](bool value) {
+        startup_on_wake->setStateChangedListener([this](bool value) {
             config::set_startup_on_wake(value);
             tuneReloadOstMisc();
+            setWakeControlsVisible(value);
         });
         m_list->addItem(startup_on_wake);
-
-        auto separate_wake = new tsl::elm::ToggleListItem(
-            "Use Separate Wake Playlist",
-            config::get_separate_wake_playlist(), "On", "Off");
-        separate_wake->setStateChangedListener([this](bool value) {
-            config::set_separate_wake_playlist(value);
-            tuneReloadOstMisc();
-            setWakePlaylistButtonVisible(value);
-        });
-        m_list->addItem(separate_wake);
-        setWakePlaylistButtonVisible(
-            config::get_separate_wake_playlist());
+        setWakeControlsVisible(config::get_startup_on_wake());
     } else if (!m_startup) {
         const bool shuffle_enabled = config::get_ost_shuffle(m_title_id);
         auto shuffle = new tsl::elm::ToggleListItem(
@@ -342,6 +332,29 @@ void OstPlaylistGui::markPlaylistChanged() {
     m_seen_revision = ost_ui_state::markPlaylistChanged(m_title_id);
 }
 
+void OstPlaylistGui::setWakeControlsVisible(bool visible) {
+    if (visible && !m_separate_wake_toggle) {
+        m_separate_wake_toggle = new tsl::elm::ToggleListItem(
+            "Use Separate Wake Playlist",
+            config::get_separate_wake_playlist(), "On", "Off");
+        m_separate_wake_toggle->setStateChangedListener([this](bool value) {
+            config::set_separate_wake_playlist(value);
+            tuneReloadOstMisc();
+            setWakePlaylistButtonVisible(value);
+        });
+        // Main Startup has five rows before these conditional controls.
+        m_list->addItem(m_separate_wake_toggle, 0, 5);
+        setWakePlaylistButtonVisible(
+            config::get_separate_wake_playlist());
+    } else if (!visible) {
+        setWakePlaylistButtonVisible(false);
+        if (m_separate_wake_toggle) {
+            m_list->removeItem(m_separate_wake_toggle);
+            m_separate_wake_toggle = nullptr;
+        }
+    }
+}
+
 void OstPlaylistGui::setWakePlaylistButtonVisible(bool visible) {
     if (visible && !m_wake_playlist_button) {
         const auto count = config::get_ost_playlist_size(
@@ -362,7 +375,8 @@ void OstPlaylistGui::setWakePlaylistButtonVisible(bool visible) {
         });
         m_wake_seen_revision = ost_ui_state::getPlaylistRevision(
             applet_bgm::WakeStartupTitleId);
-        // Main Startup has six rows before this conditional button.
+        // Main Startup has six rows before this conditional button when wake
+        // behavior is enabled.
         m_list->addItem(m_wake_playlist_button, 0, 6);
     } else if (!visible && m_wake_playlist_button) {
         m_list->removeItem(m_wake_playlist_button);
