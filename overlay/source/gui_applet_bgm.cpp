@@ -22,12 +22,13 @@ tsl::elm::Element* AppletBgmGui::createUI() {
     m_list->addItem(new tsl::elm::CategoryHeader("Overview"));
     m_list->addItem(new ElmTextBlock(
         "Each UI state has its own playlist.\n"
-        "Games and regular applications stay silent."));
+        "Games and regular applications stay silent"));
 
     addTarget(applet_bgm::StartupTitleId, "Startup Sound", true);
-    for (const auto& target : applet_bgm::QlaunchTargets) {
-        addTarget(target.title_id, target.name);
-    }
+    addTarget(applet_bgm::LockStateId, "Lock Screen");
+    addTarget(applet_bgm::QlaunchTitleId, "Home Menu");
+    addTarget(applet_bgm::LoadingStateId, "Loading Screen");
+    addTarget(applet_bgm::SettingsStateId, "System Settings");
     for (const auto& target : applet_bgm::Targets) {
         addTarget(target.title_id, target.name);
     }

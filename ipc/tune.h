@@ -130,6 +130,45 @@ typedef struct {
     u8 reserved[4];
 } TunePowerStateObserverInfo;
 
+typedef enum {
+    TuneUiActivityObserverStatus_Unavailable,
+    TuneUiActivityObserverStatus_Active,
+    TuneUiActivityObserverStatus_Failed,
+} TuneUiActivityObserverStatus;
+
+typedef struct {
+    u32 status;
+    u32 last_result;
+    u32 query_count;
+    u32 event_count;
+    u32 overlay_event_count;
+    u32 application_event_count;
+    u32 application_launch_count;
+    u32 application_in_focus_count;
+    u32 application_out_of_focus_count;
+    u32 application_background_count;
+    u32 application_exit_count;
+    u32 quick_settings_open_count;
+    u32 quick_settings_close_count;
+    u32 loading_start_count;
+    u32 loading_end_count;
+    u32 last_event_type;
+    u32 last_applet_id;
+    u32 last_event_index;
+    u32 reserved0;
+    u64 last_program_id;
+    u64 application_process_id;
+    u64 application_program_id;
+    u8 quick_settings_open;
+    u8 loading_active;
+    u8 application_out_of_focus;
+    u8 application_handoff_active;
+    u8 has_overlay_signal;
+    u8 has_application_signal;
+    u8 has_last_event;
+    u8 reserved[1];
+} TuneUiActivityObserverInfo;
+
 Result tuneInitialize();
 
 void tuneExit();
@@ -265,6 +304,16 @@ Result tuneGetAlbumVideoObserver(TuneAlbumVideoObserverInfo* out);
  * @brief Get PSC power-transition observer diagnostics.
  */
 Result tuneGetPowerStateObserver(TunePowerStateObserverInfo* out);
+
+/**
+ * @brief Get native Quick Settings and application-loading diagnostics.
+ */
+Result tuneGetUiActivityObserver(TuneUiActivityObserverInfo* out);
+
+/**
+ * @brief Clear UI-activity counters without changing live routing state.
+ */
+Result tuneResetUiActivityHistory(void);
 
 Result tuneQuit();
 

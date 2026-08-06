@@ -91,8 +91,8 @@ tsl::elm::Element* QlaunchSceneDiagnosticsGui::createUI() {
 
     list->addItem(new tsl::elm::CategoryHeader("Qlaunch Scene Observer"));
     list->addItem(new ElmTextBlock(
-        "This reads qlaunch's own raw scene telemetry.\n"
-        "Open a screen, return here, and compare the history."));
+        "Reads qlaunch's raw scene telemetry.\n"
+        "Open a screen, then compare its history."));
 
     m_status = new tsl::elm::ListItem("Observer Status");
     m_result = new tsl::elm::ListItem("Last Result");

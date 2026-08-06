@@ -75,6 +75,10 @@ void set_ost_volume(u64 tid, float value);
 auto get_album_video_volume() -> float;
 void set_album_video_volume(float value);
 
+// Multiplier applied while Nintendo's native hold-HOME panel is in focus.
+auto get_quick_settings_volume() -> float;
+void set_quick_settings_volume(float value);
+
 auto get_fade_in_ms() -> u32;
 void set_fade_in_ms(u32 value);
 auto get_fade_out_ms() -> u32;

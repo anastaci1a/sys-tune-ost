@@ -17,6 +17,7 @@ constexpr u64 StartupTitleId = UINT64_MAX;
 constexpr u64 SettingsStateId = UINT64_MAX - 1;
 constexpr u64 LockStateId = UINT64_MAX - 2;
 constexpr u64 WakeStartupTitleId = UINT64_MAX - 3;
+constexpr u64 LoadingStateId = UINT64_MAX - 4;
 constexpr u64 SilentTitleId = 0;
 
 constexpr bool IsStartupState(u64 state) {

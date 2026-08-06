@@ -170,6 +170,14 @@ Result tuneGetPowerStateObserver(TunePowerStateObserverInfo* out) {
     return serviceDispatchOut(&g_tune, TuneIpcCmd_GetPowerStateObserver, *out);
 }
 
+Result tuneGetUiActivityObserver(TuneUiActivityObserverInfo* out) {
+    return serviceDispatchOut(&g_tune, TuneIpcCmd_GetUiActivityObserver, *out);
+}
+
+Result tuneResetUiActivityHistory(void) {
+    return serviceDispatch(&g_tune, TuneIpcCmd_ResetUiActivityHistory);
+}
+
 Result tuneQuit() {
     return serviceDispatch(&g_tune, TuneIpcCmd_QuitServer);
 }

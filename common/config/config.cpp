@@ -372,8 +372,21 @@ void set_album_video_volume(float value) {
         std::clamp(value, 0.f, applet_bgm::VolumeMax), CONFIG_PATH);
 }
 
+auto get_quick_settings_volume() -> float {
+    return std::clamp(
+        ini_getf("ost_manager", "quick_settings_volume", 0.5f, CONFIG_PATH),
+        0.f, 1.f);
+}
+
+void set_quick_settings_volume(float value) {
+    create_config_dir();
+    ini_putf(
+        "ost_manager", "quick_settings_volume",
+        std::clamp(value, 0.f, 1.f), CONFIG_PATH);
+}
+
 auto get_fade_in_ms() -> u32 {
-    return std::clamp<long>(ini_getl("ost_manager", "fade_in_ms", 500, CONFIG_PATH), 0, 5000);
+    return std::clamp<long>(ini_getl("ost_manager", "fade_in_ms", 150, CONFIG_PATH), 0, 5000);
 }
 
 void set_fade_in_ms(u32 value) {
@@ -382,7 +395,7 @@ void set_fade_in_ms(u32 value) {
 }
 
 auto get_fade_out_ms() -> u32 {
-    return std::clamp<long>(ini_getl("ost_manager", "fade_out_ms", 500, CONFIG_PATH), 0, 5000);
+    return std::clamp<long>(ini_getl("ost_manager", "fade_out_ms", 0, CONFIG_PATH), 0, 5000);
 }
 
 void set_fade_out_ms(u32 value) {
@@ -391,10 +404,8 @@ void set_fade_out_ms(u32 value) {
 }
 
 auto get_mid_song_fade_in_ms() -> u32 {
-    // Preserve the previous all-purpose fade behavior on upgrade until the
-    // user explicitly chooses a separate mid-song value.
     return std::clamp<long>(ini_getl(
-        "ost_manager", "mid_song_fade_in_ms", get_fade_in_ms(), CONFIG_PATH),
+        "ost_manager", "mid_song_fade_in_ms", 300, CONFIG_PATH),
         0, 5000);
 }
 
@@ -407,7 +418,7 @@ void set_mid_song_fade_in_ms(u32 value) {
 
 auto get_mid_song_fade_out_ms() -> u32 {
     return std::clamp<long>(ini_getl(
-        "ost_manager", "mid_song_fade_out_ms", get_fade_out_ms(), CONFIG_PATH),
+        "ost_manager", "mid_song_fade_out_ms", 500, CONFIG_PATH),
         0, 5000);
 }
 
@@ -471,15 +482,23 @@ void migrate_ost_config() {
         }
     }
 
+    // A pre-mid-song build with custom fades keeps its old behavior. A fresh
+    // install receives the current factory defaults instead.
+    const bool had_fade_in =
+        ini_haskey("ost_manager", "fade_in_ms", CONFIG_PATH);
+    const bool had_fade_out =
+        ini_haskey("ost_manager", "fade_out_ms", CONFIG_PATH);
     create_config_dir();
     if (!ini_haskey("ost_manager", "mid_song_fade_in_ms", CONFIG_PATH)) {
         ini_putl(
-            "ost_manager", "mid_song_fade_in_ms", get_fade_in_ms(),
+            "ost_manager", "mid_song_fade_in_ms",
+            had_fade_in ? get_fade_in_ms() : 300,
             CONFIG_PATH);
     }
     if (!ini_haskey("ost_manager", "mid_song_fade_out_ms", CONFIG_PATH)) {
         ini_putl(
-            "ost_manager", "mid_song_fade_out_ms", get_fade_out_ms(),
+            "ost_manager", "mid_song_fade_out_ms",
+            had_fade_out ? get_fade_out_ms() : 500,
             CONFIG_PATH);
     }
     ini_putl("ost_manager", "migration_version", 2, CONFIG_PATH);

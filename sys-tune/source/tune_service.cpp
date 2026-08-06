@@ -5,6 +5,7 @@
 #include "qlaunch_scene_observer.hpp"
 #include "album_video_observer.hpp"
 #include "power_state_observer.hpp"
+#include "ui_activity_observer.hpp"
 #include "tune_result.hpp"
 #include "tune_types.hpp"
 
@@ -18,6 +19,9 @@ static_assert(
     IPC_SERVER_EXT_RESPONSE_MAX_DATA_SIZE);
 static_assert(
     sizeof(TunePowerStateObserverInfo) <=
+    IPC_SERVER_EXT_RESPONSE_MAX_DATA_SIZE);
+static_assert(
+    sizeof(TuneUiActivityObserverInfo) <=
     IPC_SERVER_EXT_RESPONSE_MAX_DATA_SIZE);
 
 #define GET_SINGLE(type, expr)            \
@@ -182,6 +186,15 @@ namespace tune {
                     GET_SINGLE(
                         TunePowerStateObserverInfo,
                         power_state::GetInfo);
+
+                case TuneIpcCmd_GetUiActivityObserver:
+                    GET_SINGLE(
+                        TuneUiActivityObserverInfo,
+                        ui_activity::GetInfo);
+
+                case TuneIpcCmd_ResetUiActivityHistory:
+                    ui_activity::ResetHistory();
+                    return 0;
 
                 case TuneIpcCmd_GetApiVersion:
                     *out_dataSize    = sizeof(u32);

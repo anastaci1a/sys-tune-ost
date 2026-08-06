@@ -1,6 +1,7 @@
 #pragma once
 
 #include <tesla.hpp>
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
@@ -33,8 +34,9 @@ public:
 
         renderer->drawString(
             m_description.c_str(), false, 30,
-            hasMultilineDescription() ? 671 : 693,
-            hasMultilineDescription() ? 20 : 23,
+            descriptionLineCount() > 1
+                ? 693 - 22 * (descriptionLineCount() - 1) : 693,
+            descriptionLineCount() > 1 ? 20 : 23,
             a(tsl::style::color::ColorText));
 
         if (m_contentElement != nullptr)
@@ -125,12 +127,13 @@ public:
     }
 
 private:
-    bool hasMultilineDescription() const {
-        return m_description.find('\n') != std::string::npos;
+    u16 descriptionLineCount() const {
+        return static_cast<u16>(
+            1 + std::count(m_description.begin(), m_description.end(), '\n'));
     }
 
     u16 footerHeight() const {
-        return hasMultilineDescription() ? 96 : 73;
+        return static_cast<u16>(73 + 23 * (descriptionLineCount() - 1));
     }
 
     std::unique_ptr<tsl::elm::Element> m_contentElement;

@@ -69,8 +69,8 @@ tsl::elm::Element* AlbumVideoDiagnosticsGui::createUI() {
 
     list->addItem(new tsl::elm::CategoryHeader("Album Video Observer"));
     list->addItem(new ElmTextBlock(
-        "Tracks PhotoViewer movie-stream reads and closes.\n"
-        "Playback and trimming should both register here."));
+        "Tracks PhotoViewer movie streams.\n"
+        "Playback and trimming register here."));
 
     m_status = new tsl::elm::ListItem("Observer Status");
     m_result = new tsl::elm::ListItem("Last Result");

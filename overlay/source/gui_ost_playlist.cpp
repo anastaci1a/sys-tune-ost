@@ -33,7 +33,7 @@ tsl::elm::Element* OstPlaylistGui::createUI() {
     populate();
     m_frame->setDescription(m_startup
         ? "\uE0E1 Back    \uE0E0 Open    \uE0E3 Remove"
-        : "\uE0E1 Back   \uE0E0 Open   \uE0E3 Remove\nZL/ZR Move");
+        : "\uE0E1 Back   \uE0E0 Open   \uE0E3 Remove\n\nZL/ZR Move");
     m_frame->setContent(m_list);
     return m_frame;
 }
@@ -61,8 +61,9 @@ void OstPlaylistGui::populate() {
                 tuneReloadOstMisc();
             }));
         m_list->addItem(new ElmTextBlock(
-            "Uses movie streams, including trimming; paused videos\n"
-            "stay at this level. Changes use Mid-Song fades."));
+            "Videos and trimming use this level.\n"
+            "Paused videos stay lowered.\n"
+            "Changes use Mid-Song fades."));
     }
 
     if (m_main_startup) {
@@ -118,10 +119,14 @@ void OstPlaylistGui::populate() {
 
         if (m_title_id == applet_bgm::QlaunchTitleId) {
             m_list->addItem(new ElmTextBlock(
-                "Home pauses for other UI states, then resumes."));
+                "Pauses outside Home, then resumes."));
+        } else if (m_title_id == applet_bgm::LoadingStateId) {
+            m_list->addItem(new ElmTextBlock(
+                "Plays while the Switch starts a game.\n"
+                "In-game loading stays silent."));
         } else {
             m_list->addItem(new ElmTextBlock(
-                "The playlist restarts whenever this applet opens."));
+                "Restarts each time this state opens."));
         }
     }
 

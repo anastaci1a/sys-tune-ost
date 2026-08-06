@@ -3,9 +3,11 @@
 #include "elm_overlayframe.hpp"
 #include "elm_text_block.hpp"
 #include "elm_volume.hpp"
-#include "gui_qlaunch_scene_diagnostics.hpp"
 #include "gui_album_video_diagnostics.hpp"
 #include "gui_power_state_diagnostics.hpp"
+#include "gui_qlaunch_scene_diagnostics.hpp"
+#include "gui_ui_activity_diagnostics.hpp"
+#include "ost_volume_slider.hpp"
 #include "config/config.hpp"
 #include "tune.h"
 
@@ -74,9 +76,21 @@ tsl::elm::Element* MiscGui::createUI() {
     auto frame = new SysTuneOverlayFrame();
     auto list = new tsl::elm::List();
 
+    list->addItem(new tsl::elm::CategoryHeader("Quick Settings"));
+    list->addItem(new ElmTextBlock(
+        "Lowers OST in Switch Quick Settings.\n"
+        "Ultrahand is unaffected."));
+    list->addItem(ost_volume_ui::MakeVolumeSlider(
+        "OST Volume", config::get_quick_settings_volume(),
+        [](float volume) {
+            config::set_quick_settings_volume(volume);
+            tuneReloadOstMisc();
+        },
+        1.f));
+
     list->addItem(new tsl::elm::CategoryHeader("Track Boundaries"));
     list->addItem(new ElmTextBlock(
-        "Used at the beginning and natural end of a track.\n"
+        "Used when tracks start or end naturally.\n"
         "Tracks do not overlap."));
     list->addItem(MakeDurationSlider(
         "Fade In", config::get_fade_in_ms(), config::set_fade_in_ms));
@@ -85,8 +99,8 @@ tsl::elm::Element* MiscGui::createUI() {
 
     list->addItem(new tsl::elm::CategoryHeader("Mid-Song Transitions"));
     list->addItem(new ElmTextBlock(
-        "Used when playback is interrupted or resumed,\n"
-        "including Home Menu pause and resume."));
+        "Used when playback pauses or resumes,\n"
+        "including Home Menu transitions."));
     list->addItem(MakeDurationSlider(
         "Mid-Song Fade In", config::get_mid_song_fade_in_ms(),
         config::set_mid_song_fade_in_ms));
@@ -96,8 +110,8 @@ tsl::elm::Element* MiscGui::createUI() {
 
     list->addItem(new tsl::elm::CategoryHeader("Experimental"));
     list->addItem(new ElmTextBlock(
-        "Inspect qlaunch, Album, and power-state signals.\n"
-        "These diagnostics do not alter playlists."));
+        "Inspect state-detection signals.\n"
+        "These pages do not alter playlists."));
     auto diagnostics = new tsl::elm::ListItem("Qlaunch Scene Diagnostics");
     diagnostics->setClickListener([](u64 keys) {
         if (keys & HidNpadButton_A) {
@@ -129,6 +143,17 @@ tsl::elm::Element* MiscGui::createUI() {
         return false;
     });
     list->addItem(power_diagnostics);
+
+    auto ui_diagnostics = new tsl::elm::ListItem(
+        "UI Activity Diagnostics");
+    ui_diagnostics->setClickListener([](u64 keys) {
+        if (keys & HidNpadButton_A) {
+            tsl::changeTo<UiActivityDiagnosticsGui>();
+            return true;
+        }
+        return false;
+    });
+    list->addItem(ui_diagnostics);
 
     frame->setDescription("\uE0E1 Back   \uE07A/\uE079 Adjust");
     frame->setContent(list);

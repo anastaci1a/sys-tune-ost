@@ -40,6 +40,8 @@ enum TuneIpcCmd {
     TuneIpcCmd_ResetQlaunchSceneHistory = 51,
     TuneIpcCmd_GetAlbumVideoObserver = 52,
     TuneIpcCmd_GetPowerStateObserver = 53,
+    TuneIpcCmd_GetUiActivityObserver = 54,
+    TuneIpcCmd_ResetUiActivityHistory = 55,
 
     TuneIpcCmd_GetApiVersion = 5000,
 };

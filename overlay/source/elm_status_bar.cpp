@@ -44,6 +44,9 @@ namespace {
         if (title_id == applet_bgm::LockStateId) {
             return "Lock Screen OST";
         }
+        if (title_id == applet_bgm::LoadingStateId) {
+            return "Loading Screen OST";
+        }
         for (const auto& target : applet_bgm::Targets) {
             if (target.title_id == title_id) {
                 return std::string(target.name) + " OST";

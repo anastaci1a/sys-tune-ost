@@ -86,8 +86,8 @@ tsl::elm::Element* PowerStateDiagnosticsGui::createUI() {
 
     list->addItem(new tsl::elm::CategoryHeader("Power-State Observer"));
     list->addItem(new ElmTextBlock(
-        "Receives Horizon sleep/wake coordination before\n"
-        "qlaunch changes scenes; queued OST audio is flushed first."));
+        "Receives sleep/wake before qlaunch changes.\n"
+        "Queued OST audio is flushed first."));
 
     m_status = new tsl::elm::ListItem("Observer Status");
     m_result = new tsl::elm::ListItem("Last Result");

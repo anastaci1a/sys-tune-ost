@@ -4,6 +4,7 @@
 #include "../album_video_observer.hpp"
 #include "../power_state_observer.hpp"
 #include "../qlaunch_scene_observer.hpp"
+#include "../ui_activity_observer.hpp"
 #include "../tune_result.hpp"
 #include "sdmc/sdmc.hpp"
 #include "pm/pm.hpp"
@@ -165,21 +166,18 @@ struct PlaybackResult {
 struct PlaybackSourceCache {
     std::unique_ptr<Source> source{};
     char path[applet_bgm::PathSizeMax]{};
-    u32 position{};
     u32 generation{};
 
     void Clear() {
         source.reset();
         path[0] = '\0';
-        position = 0;
         generation = 0;
     }
 
-    bool Take(const char* requested_path, u32 requested_position,
-              u32 requested_generation, u32 requested_frame,
+    bool Take(const char* requested_path, u32 requested_generation,
+              u32 requested_frame,
               std::unique_ptr<Source>& out) {
         const bool matches = source &&
-            position == requested_position &&
             generation == requested_generation &&
             std::strcmp(path, requested_path) == 0 &&
             source->Tell().first == requested_frame;
@@ -194,16 +192,14 @@ struct PlaybackSourceCache {
         source->ResetIoBuffer();
         out = std::move(source);
         path[0] = '\0';
-        position = 0;
         generation = 0;
         return true;
     }
 
-    void Store(const char* cached_path, u32 cached_position,
-               u32 cached_generation, std::unique_ptr<Source> cached_source) {
+    void Store(const char* cached_path, u32 cached_generation,
+               std::unique_ptr<Source> cached_source) {
         Clear();
         std::snprintf(path, sizeof(path), "%s", cached_path);
-        position = cached_position;
         generation = cached_generation;
         source = std::move(cached_source);
     }
@@ -215,6 +211,7 @@ LockableMutex g_startup_mutex;
 OstSession g_home_session;
 OstSession g_applet_session;
 OstSession g_startup_session;
+OstSession g_reconcile_session;
 OstSession* g_active_session{};
 u64 g_active_state{applet_bgm::SilentTitleId};
 bool g_home_initialized{};
@@ -247,14 +244,15 @@ std::atomic<u32> g_transition_serial = 1;
 std::atomic_bool g_force_reload_pending = false;
 std::atomic<u64> g_force_reload_state = applet_bgm::SilentTitleId;
 
-std::atomic<u32> g_fade_in_ms = 500;
-std::atomic<u32> g_fade_out_ms = 500;
-std::atomic<u32> g_mid_song_fade_in_ms = 500;
+std::atomic<u32> g_fade_in_ms = 150;
+std::atomic<u32> g_fade_out_ms = 0;
+std::atomic<u32> g_mid_song_fade_in_ms = 300;
 std::atomic<u32> g_mid_song_fade_out_ms = 500;
 
 std::atomic<float> g_global_volume = 1.f;
 std::atomic<float> g_state_volume = 1.f;
 std::atomic<float> g_album_video_volume = 1.f;
+std::atomic<float> g_quick_settings_volume = 0.5f;
 float g_default_title_volume = 1.f;
 
 AudioOutBuffer g_audout_buffer[AUDIO_BUFFER_COUNT];
@@ -351,13 +349,19 @@ bool IsPlayablePath(const char* path) {
            GetSourceType(path) != SourceType::NONE;
 }
 
-void LoadSession(OstSession& session, u64 state, bool startup) {
+u32 NextSessionGenerationLocked() {
+    auto generation = ++g_session_generation;
+    if (generation == 0) {
+        generation = ++g_session_generation;
+    }
+    return generation;
+}
+
+void LoadSession(OstSession& session, u64 state, bool startup,
+                 const char* preferred_startup_path = nullptr) {
     session = {};
     session.state = state;
-    session.generation = ++g_session_generation;
-    if (session.generation == 0) {
-        session.generation = ++g_session_generation;
-    }
+    session.generation = NextSessionGenerationLocked();
 
     // Read the whole playlist in one INI pass. File existence is deliberately
     // checked only when a track is opened; probing every path on every applet
@@ -389,7 +393,19 @@ void LoadSession(OstSession& session, u64 state, bool startup) {
     }
 
     if (startup) {
-        const auto chosen = static_cast<u32>(randomGet64() % session.count);
+        auto chosen = static_cast<u32>(randomGet64() % session.count);
+        if (preferred_startup_path && preferred_startup_path[0] != '\0') {
+            for (u32 position = 0; position < session.count; ++position) {
+                const auto track_index = session.order[position];
+                if (track_index < session.tracks.size() &&
+                    std::strcmp(
+                        session.tracks[track_index].path,
+                        preferred_startup_path) == 0) {
+                    chosen = position;
+                    break;
+                }
+            }
+        }
         const auto chosen_track = session.order[chosen];
         if (chosen_track != 0) {
             session.tracks[0] = session.tracks[chosen_track];
@@ -399,6 +415,61 @@ void LoadSession(OstSession& session, u64 state, bool startup) {
     } else if (session.shuffle == ShuffleMode::On) {
         session.Shuffle();
     }
+}
+
+bool ReconcileSessionLocked(OstSession& session, u64 state, bool startup) {
+    const auto* current = session.Current();
+    char current_path[applet_bgm::PathSizeMax]{};
+    if (current) {
+        std::snprintf(current_path, sizeof(current_path), "%s", current->path);
+    }
+    const auto old_resume_frame = session.resume_frame;
+    const auto old_generation = session.generation;
+    const auto old_paused = session.paused;
+
+    LoadSession(
+        g_reconcile_session, state, startup,
+        startup ? current_path : nullptr);
+
+    u32 matching_position = g_reconcile_session.count;
+    if (current_path[0] != '\0') {
+        for (u32 position = 0; position < g_reconcile_session.count;
+             ++position) {
+            const auto track_index = g_reconcile_session.order[position];
+            if (track_index < g_reconcile_session.tracks.size() &&
+                std::strcmp(
+                    g_reconcile_session.tracks[track_index].path,
+                    current_path) == 0) {
+                matching_position = position;
+                break;
+            }
+        }
+    }
+
+    const bool kept_current =
+        matching_position < g_reconcile_session.count;
+    if (kept_current) {
+        if (!startup &&
+            g_reconcile_session.shuffle == ShuffleMode::On) {
+            // Keep the playing song fixed and reshuffle every other entry as
+            // one fresh upcoming queue.
+            std::swap(
+                g_reconcile_session.order[0],
+                g_reconcile_session.order[matching_position]);
+            g_reconcile_session.position = 0;
+        } else {
+            // Ordered playlists immediately adopt the current file's edited
+            // position and its new neighbors.
+            g_reconcile_session.position = matching_position;
+        }
+        g_reconcile_session.resume_frame = old_resume_frame;
+        g_reconcile_session.generation = old_generation;
+        g_reconcile_session.paused = old_paused;
+        g_reconcile_session.finished = false;
+    }
+
+    session = g_reconcile_session;
+    return kept_current;
 }
 
 void ActivateStateLocked(u64 state, bool force_reload) {
@@ -570,86 +641,6 @@ Result ConsumePowerTransitions(PowerTransitions* transitions) {
     return 0;
 }
 
-Result IsApplicationOutOfFocus(u64 title_id, bool* out_of_focus) {
-    static s32 last_total_entries = -1;
-    static s32 last_end_entry_index = -1;
-    static u64 last_title_id = 0;
-    static bool last_out_of_focus = false;
-    static Result last_result = 1;
-
-    s32 total_entries = 0;
-    s32 start_entry_index = 0;
-    s32 end_entry_index = 0;
-    Result rc = pdmqryGetAvailablePlayEventRange(
-        &total_entries, &start_entry_index, &end_entry_index);
-    if (R_FAILED(rc)) {
-        return rc;
-    }
-
-    if (total_entries == last_total_entries &&
-        end_entry_index == last_end_entry_index &&
-        title_id == last_title_id) {
-        if (R_SUCCEEDED(last_result)) {
-            *out_of_focus = last_out_of_focus;
-        }
-        return last_result;
-    }
-
-    const bool had_cached_state = title_id == last_title_id && R_SUCCEEDED(last_result);
-    const bool cached_out_of_focus = last_out_of_focus;
-
-    last_total_entries = total_entries;
-    last_end_entry_index = end_entry_index;
-    last_title_id = title_id;
-
-    constexpr s32 EventCount = 16;
-    PdmPlayEvent events[EventCount]{};
-    s32 count = 0;
-    const s32 start = std::max(start_entry_index, end_entry_index - (EventCount - 1));
-
-    rc = pdmqryQueryPlayEvent(start, events, EventCount, &count);
-    if (R_FAILED(rc) || count == 0) {
-        last_result = R_FAILED(rc) ? rc : 1;
-        return last_result;
-    }
-
-    for (s32 i = count - 1; i >= 0; i--) {
-        const auto& event = events[i];
-        if (event.play_event_type != PdmPlayEventType_Applet ||
-            event.event_data.applet.applet_id != AppletId_application) {
-            continue;
-        }
-
-        union {
-            u32 parts[2];
-            u64 full;
-        } event_title_id{};
-        event_title_id.parts[0] = event.event_data.applet.program_id[1];
-        event_title_id.parts[1] = event.event_data.applet.program_id[0];
-
-        if (event_title_id.full != title_id &&
-            event_title_id.full != (title_id & ~0xFFFULL)) {
-            continue;
-        }
-
-        const auto event_type = event.event_data.applet.event_type;
-        last_out_of_focus = event_type == PdmAppletEventType_OutOfFocus ||
-                            event_type == PdmAppletEventType_OutOfFocus4;
-        *out_of_focus = last_out_of_focus;
-        last_result = 0;
-        return 0;
-    }
-
-    if (had_cached_state) {
-        last_out_of_focus = cached_out_of_focus;
-        *out_of_focus = cached_out_of_focus;
-        last_result = 0;
-    } else {
-        last_result = 1;
-    }
-    return last_result;
-}
-
 struct GainEnvelope {
     float current{1.f};
     float start{1.f};
@@ -707,6 +698,14 @@ float AlbumVideoGainTarget(u64 playing_state) {
         : 1.f;
 }
 
+float QuickSettingsGainTarget() {
+    const auto snapshot = ui_activity::GetSnapshot();
+    return snapshot.availability == ui_activity::Availability::Active &&
+           snapshot.quick_settings_open
+        ? g_quick_settings_volume.load(std::memory_order_acquire)
+        : 1.f;
+}
+
 void ApplyGain(s16* samples, size_t byte_count, float start_gain,
                float end_gain, float playback_gain_start,
                float playback_gain_end) {
@@ -741,12 +740,12 @@ void ApplyGain(s16* samples, size_t byte_count, float start_gain,
 }
 
 PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
-                         u32 playing_position, u32 playing_generation,
+                         u32 playing_generation,
                          u64 playing_state,
                          PlaybackSourceCache* resume_cache) {
     std::unique_ptr<Source> source;
     const bool reused_source = resume_cache && resume_cache->Take(
-        path, playing_position, playing_generation, resume_frame, source);
+        path, playing_generation, resume_frame, source);
     if (!reused_source) {
         source = OpenFile(path);
         if (!source || !source->IsOpen()) {
@@ -786,6 +785,8 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
     PlaybackResult outcome{0, PlaybackEnd::Error, resume_frame};
     GainEnvelope album_video_gain;
     album_video_gain.SetImmediate(AlbumVideoGainTarget(playing_state));
+    GainEnvelope quick_settings_gain;
+    quick_settings_gain.SetImmediate(QuickSettingsGainTarget());
 
     while (g_should_run) {
         const bool interrupted = g_output_paused ||
@@ -916,6 +917,16 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
         }
         const auto [video_gain_start, video_gain_end] =
             album_video_gain.Advance(output_frames);
+        const auto quick_settings_target = QuickSettingsGainTarget();
+        if (quick_settings_target != quick_settings_gain.target) {
+            const auto duration_ms =
+                quick_settings_target < quick_settings_gain.current
+                ? g_mid_song_fade_out_ms.load(std::memory_order_acquire)
+                : g_mid_song_fade_in_ms.load(std::memory_order_acquire);
+            quick_settings_gain.Retarget(quick_settings_target, duration_ms);
+        }
+        const auto [quick_gain_start, quick_gain_end] =
+            quick_settings_gain.Advance(output_frames);
         const auto playback_gain =
             g_global_volume.load(std::memory_order_acquire) *
             g_state_volume.load(std::memory_order_acquire);
@@ -923,8 +934,8 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
             static_cast<s16*>(buffer->buffer), decoded_bytes,
             std::min(fade_in_start, fade_out_start),
             std::min(fade_in_end, fade_out_end),
-            playback_gain * video_gain_start,
-            playback_gain * video_gain_end);
+            playback_gain * video_gain_start * quick_gain_start,
+            playback_gain * video_gain_end * quick_gain_end);
 
         buffer->data_size = decoded_bytes;
         rc = audoutAppendAudioOutBuffer(buffer);
@@ -959,7 +970,7 @@ PlaybackResult PlayTrack(const char* path, u32 resume_frame, u32 play_serial,
         g_source = nullptr;
     }
     if (retain_source) {
-        resume_cache->Store(path, playing_position, playing_generation,
+        resume_cache->Store(path, playing_generation,
                             std::move(source));
     }
     return outcome;
@@ -1015,6 +1026,7 @@ Result Initialize() {
             pdmqryExit();
         }
     }
+    ui_activity::Initialize(g_pdmqry_available);
 
     // Best-effort early power-state detection. PDM remains available as a
     // fallback if PSC rejects the experimental observer module.
@@ -1059,7 +1071,6 @@ void TuneThreadFunc(void*) {
         char play_path[applet_bgm::PathSizeMax]{};
         u32 resume_frame = 0;
         u64 playing_state = applet_bgm::SilentTitleId;
-        u32 playing_position = 0;
         u32 playing_generation = 0;
         u32 playing_startup_generation = 0;
         {
@@ -1070,7 +1081,6 @@ void TuneThreadFunc(void*) {
                     std::snprintf(play_path, sizeof(play_path), "%s", track->path);
                     resume_frame = g_active_session->resume_frame;
                     playing_state = g_active_state;
-                    playing_position = g_active_session->position;
                     playing_generation = g_active_session->generation;
                     if (applet_bgm::IsStartupState(playing_state)) {
                         playing_startup_generation =
@@ -1107,8 +1117,8 @@ void TuneThreadFunc(void*) {
         }
 
         const auto playback = PlayTrack(
-            play_path, resume_frame, play_serial, playing_position,
-            playing_generation, playing_state,
+            play_path, resume_frame, play_serial, playing_generation,
+            playing_state,
             playing_state == applet_bgm::QlaunchTitleId
                 ? &home_source_cache : nullptr);
         bool startup_finished = false;
@@ -1118,7 +1128,7 @@ void TuneThreadFunc(void*) {
             g_status = PlayerStatus::FetchNext;
 
             if (g_active_session && g_active_state == playing_state &&
-                g_active_session->position == playing_position) {
+                g_active_session->generation == playing_generation) {
                 const auto* current = g_active_session->Current();
                 if (current && std::strcmp(current->path, play_path) == 0) {
                     if (playback.end == PlaybackEnd::Interrupted) {
@@ -1201,19 +1211,34 @@ void PmdmntThreadFunc(void*) {
         u64 application_tid = 0;
         pm::getCurrentPidTid(&application_pid, &application_tid);
 
-        bool application_out_of_focus = false;
-        if (g_pdmqry_available && application_tid != 0 &&
-            application_tid != applet_bgm::QlaunchTitleId) {
-            bool out_of_focus = false;
-            if (R_SUCCEEDED(IsApplicationOutOfFocus(application_tid, &out_of_focus))) {
-                application_out_of_focus = out_of_focus;
-            }
-        }
+        ui_activity::Poll(application_pid, application_tid);
+        const auto ui_activity_snapshot = ui_activity::GetSnapshot();
+        const bool application_out_of_focus =
+            ui_activity_snapshot.availability ==
+                ui_activity::Availability::Active &&
+            ui_activity_snapshot.application_out_of_focus;
 
         u64 target_pid = 0;
         u64 process_target = applet_bgm::SilentTitleId;
         pm::getAppletBgmTarget(
             &target_pid, &process_target, application_out_of_focus);
+        const bool loading_can_own =
+            process_target == applet_bgm::QlaunchTitleId ||
+            (process_target == applet_bgm::SilentTitleId &&
+             target_pid != 0 && target_pid == application_pid);
+        if (loading_can_own &&
+            ui_activity_snapshot.availability ==
+                ui_activity::Availability::Active &&
+            ui_activity_snapshot.application_loading) {
+            process_target = applet_bgm::LoadingStateId;
+        } else if (process_target == applet_bgm::QlaunchTitleId &&
+            ui_activity_snapshot.availability ==
+                ui_activity::Availability::Active &&
+            ui_activity_snapshot.application_handoff_active) {
+            // Keep multi-program and other in-game hand-offs silent. They can
+            // briefly vacate the application slot without displaying HOME.
+            process_target = applet_bgm::SilentTitleId;
+        }
         const auto scene_snapshot = qlaunch_scene::GetSceneSnapshot();
 
         // Keep the late PDM cursor current even while PSC is healthy. If the
@@ -1479,6 +1504,7 @@ void Next() {
             !applet_bgm::IsStartupState(g_active_state)) {
             changed = g_active_session->Advance(true);
             if (changed) {
+                g_active_session->generation = NextSessionGenerationLocked();
                 g_active_session->paused = false;
             }
         }
@@ -1496,6 +1522,7 @@ void Prev() {
             !applet_bgm::IsStartupState(g_active_state)) {
             changed = g_active_session->Previous();
             if (changed) {
+                g_active_session->generation = NextSessionGenerationLocked();
                 g_active_session->paused = false;
             }
         }
@@ -1674,6 +1701,7 @@ void Select(u32 index) {
             !applet_bgm::IsStartupState(g_active_state)) {
             g_active_session->position = index;
             g_active_session->resume_frame = 0;
+            g_active_session->generation = NextSessionGenerationLocked();
             g_active_session->paused = false;
             g_active_session->finished = false;
             changed = true;
@@ -1722,15 +1750,40 @@ void ReloadAppletBgm() {
 
 void ReloadOstState(u64 title_id) {
     bool active = false;
+    bool kept_current = false;
+    bool reconciled = false;
     {
         std::scoped_lock lk(g_mutex);
-        if (title_id == applet_bgm::QlaunchTitleId) {
+        active = g_active_state == title_id;
+
+        // Rebuild an edited playlist around its current file. This can
+        // update the queue without stopping the decoder that is already
+        // feeding audio. HOME is also reconciled while retained behind another
+        // state so its cached decoder/position survives playlist edits.
+        if (title_id == applet_bgm::QlaunchTitleId &&
+            g_home_initialized) {
+            kept_current = ReconcileSessionLocked(
+                g_home_session, title_id, false);
+            reconciled = true;
+        } else if (active && g_active_session) {
+            kept_current = ReconcileSessionLocked(
+                *g_active_session, title_id,
+                applet_bgm::IsStartupState(title_id));
+            reconciled = true;
+        }
+
+        if (title_id == applet_bgm::QlaunchTitleId && !reconciled) {
             g_home_initialized = false;
         }
-        active = g_active_state == title_id;
     }
 
-    if (active) {
+    if (active && reconciled) {
+        // If the current file disappeared, interrupt it and begin the newly
+        // loaded queue. Otherwise the existing PlayTrack call remains valid.
+        if (!kept_current) {
+            SignalTransition();
+        }
+    } else if (active) {
         g_force_reload_state = title_id;
         g_force_reload_pending = true;
         SignalTransition();
@@ -1745,6 +1798,7 @@ void ReloadOstMisc() {
     g_startup_on_wake = config::get_startup_on_wake();
     g_separate_wake_playlist = config::get_separate_wake_playlist();
     g_album_video_volume = config::get_album_video_volume();
+    g_quick_settings_volume = config::get_quick_settings_volume();
     std::scoped_lock lk(g_mutex);
     g_state_volume.store(
         g_active_state == applet_bgm::SilentTitleId
