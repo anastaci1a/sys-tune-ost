@@ -11,7 +11,6 @@ namespace {
 
 constexpr u64 OverlayDispProgramId = 0x010000000000100CULL;
 constexpr s32 EventBatchSize = 16;
-constexpr u64 QuickSettingsHoldNs = 1'000'000'000ULL;
 constexpr u32 QuickSettingsPanelLeft = 760;
 
 Mutex g_info_mutex{};
@@ -28,8 +27,6 @@ bool g_application_session_started{};
 bool g_application_backgrounded{};
 bool g_application_internal_out_of_focus{};
 bool g_application_slot_baselined{};
-bool g_overlay_open{};
-bool g_overlay_holds_loading{};
 bool g_hid_available{};
 bool g_hidsys_initialized{};
 bool g_home_baselined{};
@@ -138,7 +135,7 @@ void SetQuickSettingsLocked(bool open) {
     ++g_update_count;
 }
 
-void ProcessHomeStateLocked(bool held, u64 tick) {
+void ProcessHomeStateLocked(bool held, u64 tick, u64 hold_ns) {
     if (held == g_home_held) {
         return;
     }
@@ -157,12 +154,21 @@ void ProcessHomeStateLocked(bool held, u64 tick) {
             g_suppress_home_long_until_release = false;
         }
     } else {
-        if (!g_home_long_reported &&
-            !g_suppress_home_long_until_release) {
-            ++g_info.home_short_press_count;
-            ++g_home_short_press_serial;
-            g_last_home_short_press_tick = tick;
-            g_info.last_home_short_press_tick = tick;
+        if (!g_home_long_reported && !g_suppress_home_long_until_release) {
+            // A press can cross the configured threshold between two 50 ms
+            // routing polls. Classify it from its complete duration on release
+            // so a real Quick Settings open is not mistaken for short HOME.
+            if (g_home_press_tick != 0 &&
+                armTicksToNs(tick - g_home_press_tick) >= hold_ns) {
+                g_home_long_reported = true;
+                ++g_info.home_long_press_count;
+                SetQuickSettingsLocked(true);
+            } else {
+                ++g_info.home_short_press_count;
+                ++g_home_short_press_serial;
+                g_last_home_short_press_tick = tick;
+                g_info.last_home_short_press_tick = tick;
+            }
         }
         g_suppress_home_long_until_release = false;
     }
@@ -218,7 +224,7 @@ NpadSnapshot ReadNpadSnapshot() {
     return snapshot;
 }
 
-void PollInput() {
+void PollInput(u32 quick_settings_hold_ms) {
     if (!g_hid_available) {
         return;
     }
@@ -231,6 +237,8 @@ void PollInput() {
     const bool has_touch_sample =
         hidGetTouchScreenStates(&touch_state, 1) != 0;
     const auto now = armGetSystemTick();
+    const auto hold_ns = static_cast<u64>(
+        std::clamp(quick_settings_hold_ms, 100u, 1500u)) * 1'000'000ULL;
 
     mutexLock(&g_info_mutex);
     if (home_count != 0) {
@@ -254,14 +262,13 @@ void PollInput() {
                 }
                 g_last_home_sampling_number = state.sampling_number;
                 ++g_info.home_sample_count;
-                ProcessHomeStateLocked(state.buttons != 0, now);
+                ProcessHomeStateLocked(state.buttons != 0, now, hold_ns);
             }
         }
 
         if (g_home_held && !g_home_long_reported &&
             !g_suppress_home_long_until_release &&
-            armTicksToNs(now - g_home_press_tick) >=
-                QuickSettingsHoldNs) {
+            armTicksToNs(now - g_home_press_tick) >= hold_ns) {
             g_home_long_reported = true;
             ++g_info.home_long_press_count;
             SetQuickSettingsLocked(true);
@@ -317,23 +324,10 @@ void ApplyEventLocked(
     if (allow_overlay_events && program_id == OverlayDispProgramId) {
         ++g_info.overlay_event_count;
         g_info.has_overlay_signal = true;
-        if (IsForegroundEvent(event_type)) {
-            g_overlay_open = true;
-            if (g_info.loading_active) {
-                // overlayDisp also owns Nintendo's application-launch visual.
-                // It extends Loading only; Quick Settings is detected from the
-                // dedicated HOME-button stream instead.
-                g_overlay_holds_loading = true;
-                g_info.loading_overlay_active = true;
-            }
-        } else if (IsOutOfFocusEvent(event_type) || IsExitEvent(event_type)) {
-            g_overlay_open = false;
-            if (g_overlay_holds_loading) {
-                g_overlay_holds_loading = false;
-                g_info.loading_overlay_active = false;
-                SetLoadingLocked(false);
-            }
-        }
+        // overlayDisp is long-lived and its PDM focus edges are not a paired
+        // visibility lifecycle on hardware. Keep these events diagnostic-only;
+        // treating them as a latch can hold Loading forever.
+        g_info.loading_overlay_active = false;
     }
 
     if (allow_overlay_events &&
@@ -426,13 +420,6 @@ void ApplyEventLocked(
         g_application_internal_out_of_focus = false;
         g_info.application_out_of_focus = false;
         SetLoadingLocked(launch_should_load);
-        if (launch_should_load && g_overlay_open) {
-            // overlayDisp is long-lived, but its next out-of-focus edge still
-            // marks the end of Nintendo's launch visual. It is deliberately
-            // used only for Loading and never as a Quick Settings state.
-            g_overlay_holds_loading = true;
-            g_info.loading_overlay_active = true;
-        }
     } else if (event_type == PdmAppletEventType_InFocus) {
         if (!matches_current) {
             g_pending_application_loading = false;
@@ -442,9 +429,7 @@ void ApplyEventLocked(
             g_application_backgrounded = false;
             g_application_internal_out_of_focus = false;
             g_info.application_out_of_focus = false;
-            if (!g_overlay_holds_loading) {
-                SetLoadingLocked(false);
-            }
+            SetLoadingLocked(false);
         }
     } else if (event_type == PdmAppletEventType_OutOfFocus) {
         if (!matches_current) {
@@ -456,7 +441,6 @@ void ApplyEventLocked(
             // applet target, keep game-native loading intervals silent.
             g_application_internal_out_of_focus = true;
             g_info.application_out_of_focus = false;
-            g_overlay_holds_loading = false;
             g_info.loading_overlay_active = false;
             SetLoadingLocked(false);
         }
@@ -469,7 +453,6 @@ void ApplyEventLocked(
             g_application_backgrounded = true;
             g_application_internal_out_of_focus = false;
             g_info.application_out_of_focus = true;
-            g_overlay_holds_loading = false;
             g_info.loading_overlay_active = false;
             SetLoadingLocked(false);
         }
@@ -482,7 +465,6 @@ void ApplyEventLocked(
                 g_application_backgrounded = true;
             }
             g_info.application_out_of_focus = false;
-            g_overlay_holds_loading = false;
             g_info.loading_overlay_active = false;
             SetLoadingLocked(false);
         }
@@ -549,8 +531,6 @@ void Initialize(bool pdm_available) {
     g_application_backgrounded = false;
     g_application_internal_out_of_focus = false;
     g_application_slot_baselined = false;
-    g_overlay_open = false;
-    g_overlay_holds_loading = false;
     g_hid_available = false;
     g_hidsys_initialized = false;
     g_home_baselined = false;
@@ -608,8 +588,10 @@ void Exit() {
     }
 }
 
-void Poll(u64 application_process_id, u64 application_program_id) {
-    PollInput();
+void Poll(
+    u64 application_process_id, u64 application_program_id,
+    u32 quick_settings_hold_ms) {
+    PollInput(quick_settings_hold_ms);
     if (!g_available) {
         return;
     }
@@ -658,11 +640,7 @@ void Poll(u64 application_process_id, u64 application_program_id) {
             }
         }
         g_info.application_out_of_focus = out_of_focus;
-        // The process slot and PDM InFocus record can settle before Nintendo's
-        // launch animation has actually left the screen. Once overlayDisp has
-        // claimed this launch, only its matching close/background edge ends
-        // Loading; a process-slot refresh must not shorten that lifetime.
-        SetLoadingLocked(loading || g_overlay_holds_loading);
+        SetLoadingLocked(loading);
         if (application_process_id != 0 || !has_application) {
             g_has_pending_application_event = false;
             g_pending_application_program_id = 0;

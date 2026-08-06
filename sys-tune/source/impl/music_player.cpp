@@ -250,11 +250,14 @@ std::atomic<u32> g_fade_out_ms = 0;
 std::atomic<u32> g_mid_song_fade_in_ms = 300;
 std::atomic<u32> g_mid_song_fade_out_ms = 500;
 std::atomic<u32> g_loading_start_delay_ms = 500;
+std::atomic<u32> g_loading_end_delay_ms = 0;
+std::atomic<u32> g_quick_settings_hold_ms = 400;
 
 std::atomic<float> g_global_volume = 1.f;
 std::atomic<float> g_state_volume = 1.f;
 std::atomic<float> g_album_video_volume = 1.f;
 std::atomic<float> g_quick_settings_volume = 0.5f;
+std::atomic_bool g_quick_settings_enabled = true;
 float g_default_title_volume = 1.f;
 
 AudioOutBuffer g_audout_buffer[AUDIO_BUFFER_COUNT];
@@ -701,6 +704,9 @@ float AlbumVideoGainTarget(u64 playing_state) {
 }
 
 float QuickSettingsGainTarget() {
+    if (!g_quick_settings_enabled.load(std::memory_order_acquire)) {
+        return 1.f;
+    }
     const auto snapshot = ui_activity::GetSnapshot();
     return snapshot.input_available && snapshot.quick_settings_open
         ? g_quick_settings_volume.load(std::memory_order_acquire)
@@ -1191,7 +1197,11 @@ void PmdmntThreadFunc(void*) {
     u64 current_target = UINT64_MAX;
     bool sleeping = false;
     bool previous_loading_active = false;
+    bool loading_start_tracking = false;
+    bool loading_music_started = false;
+    bool loading_end_holding = false;
     u64 loading_started_tick = 0;
+    u64 loading_ended_tick = 0;
     u64 tracked_library_applet = applet_bgm::SilentTitleId;
     u64 tracked_library_applet_pid = 0;
     bool library_applet_home_override = false;
@@ -1207,6 +1217,14 @@ void PmdmntThreadFunc(void*) {
     bool gated_home_seen = false;
     u64 gated_home_since_tick = 0;
     u32 last_coordinated_transition = 0;
+    const auto reset_loading_timing = [&]() {
+        previous_loading_active = false;
+        loading_start_tracking = false;
+        loading_music_started = false;
+        loading_end_holding = false;
+        loading_started_tick = 0;
+        loading_ended_tick = 0;
+    };
 
     while (g_should_run) {
         const bool reload = g_applet_bgm_reload.exchange(false);
@@ -1214,6 +1232,7 @@ void PmdmntThreadFunc(void*) {
             enabled = config::get_applet_bgm_enabled();
             g_master_enabled = enabled;
             current_target = UINT64_MAX;
+            reset_loading_timing();
             if (!enabled) {
                 CancelStartupAndRequest(applet_bgm::SilentTitleId);
             }
@@ -1223,18 +1242,66 @@ void PmdmntThreadFunc(void*) {
         u64 application_tid = 0;
         pm::getCurrentPidTid(&application_pid, &application_tid);
 
-        ui_activity::Poll(application_pid, application_tid);
+        ui_activity::Poll(
+            application_pid, application_tid,
+            g_quick_settings_hold_ms.load(std::memory_order_acquire));
         const auto ui_activity_snapshot = ui_activity::GetSnapshot();
         const bool loading_active =
             ui_activity_snapshot.availability ==
                 ui_activity::Availability::Active &&
             ui_activity_snapshot.application_loading;
         const auto routing_tick = armGetSystemTick();
-        if (loading_active && !previous_loading_active) {
-            loading_started_tick = routing_tick;
-        } else if (!loading_active) {
+        const auto loading_start_delay_ns = static_cast<u64>(
+            g_loading_start_delay_ms.load(std::memory_order_acquire)) *
+            1'000'000ULL;
+        const auto loading_end_delay_ns = static_cast<u64>(
+            g_loading_end_delay_ms.load(std::memory_order_acquire)) *
+            1'000'000ULL;
+
+        if (loading_active) {
+            if (!previous_loading_active) {
+                const bool continues_end_hold = loading_end_holding &&
+                    loading_end_delay_ns != 0 &&
+                    armTicksToNs(routing_tick - loading_ended_tick) <
+                        loading_end_delay_ns;
+                if (!continues_end_hold) {
+                    loading_start_tracking = true;
+                    loading_music_started = false;
+                    loading_started_tick = routing_tick;
+                }
+                loading_end_holding = false;
+                loading_ended_tick = 0;
+            }
+            if (loading_start_tracking && !loading_music_started &&
+                armTicksToNs(routing_tick - loading_started_tick) >=
+                    loading_start_delay_ns) {
+                loading_start_tracking = false;
+                loading_music_started = true;
+            }
+        } else if (previous_loading_active) {
+            loading_start_tracking = false;
+            if (loading_music_started && loading_end_delay_ns != 0) {
+                loading_end_holding = true;
+                loading_ended_tick = routing_tick;
+            } else {
+                loading_music_started = false;
+                loading_end_holding = false;
+                loading_started_tick = 0;
+                loading_ended_tick = 0;
+            }
+        } else if (loading_end_holding &&
+            (loading_end_delay_ns == 0 ||
+             armTicksToNs(routing_tick - loading_ended_tick) >=
+                loading_end_delay_ns)) {
+            loading_music_started = false;
+            loading_end_holding = false;
             loading_started_tick = 0;
+            loading_ended_tick = 0;
         }
+        const bool loading_music_active = loading_music_started &&
+            (loading_active || loading_end_holding);
+        const bool loading_start_pending =
+            loading_active && !loading_music_started;
         previous_loading_active = loading_active;
         const bool application_out_of_focus =
             ui_activity_snapshot.availability ==
@@ -1346,8 +1413,11 @@ void PmdmntThreadFunc(void*) {
             process_target == applet_bgm::QlaunchTitleId ||
             (process_target == applet_bgm::SilentTitleId &&
              target_pid != 0 && target_pid == application_pid);
-        if (loading_can_own && loading_active) {
+        if (loading_can_own && loading_music_active) {
             process_target = applet_bgm::LoadingStateId;
+        } else if (loading_can_own && loading_start_pending) {
+            // Do not let Home OST fill the intentional pre-loading delay.
+            process_target = applet_bgm::SilentTitleId;
         } else if (process_target == applet_bgm::QlaunchTitleId &&
             ui_activity_snapshot.availability ==
                 ui_activity::Availability::Active &&
@@ -1397,6 +1467,7 @@ void PmdmntThreadFunc(void*) {
 
         if (power_transitions.last == PowerTransition::Sleep) {
             ui_activity::CloseQuickSettings();
+            reset_loading_timing();
             sleeping = true;
             wake_latched = false;
             home_scene_gate = HomeSceneGate::None;
@@ -1410,6 +1481,8 @@ void PmdmntThreadFunc(void*) {
             }
         } else if (power_transitions.last == PowerTransition::Wake) {
             ui_activity::CloseQuickSettings();
+            reset_loading_timing();
+            process_target = applet_bgm::SilentTitleId;
             const bool new_wake = coordinated_power_transition ||
                 !wake_latched || power_transitions.saw_sleep;
             sleeping = false;
@@ -1443,17 +1516,6 @@ void PmdmntThreadFunc(void*) {
         u64 target = sleeping || power_audio_hold
             ? applet_bgm::SilentTitleId
             : ResolveQlaunchState(process_target, scene_snapshot);
-
-        if (target == applet_bgm::LoadingStateId &&
-            loading_started_tick != 0) {
-            const auto delay_ns = static_cast<u64>(
-                g_loading_start_delay_ms.load(std::memory_order_acquire)) *
-                1'000'000ULL;
-            if (armTicksToNs(routing_tick - loading_started_tick) <
-                delay_ns) {
-                target = applet_bgm::SilentTitleId;
-            }
-        }
 
         if (!sleeping && !power_audio_hold) {
             const bool scene_ready =
@@ -1926,10 +1988,13 @@ void ReloadOstMisc() {
     g_mid_song_fade_in_ms = config::get_mid_song_fade_in_ms();
     g_mid_song_fade_out_ms = config::get_mid_song_fade_out_ms();
     g_loading_start_delay_ms = config::get_loading_start_delay_ms();
+    g_loading_end_delay_ms = config::get_loading_end_delay_ms();
+    g_quick_settings_hold_ms = config::get_quick_settings_hold_ms();
     g_startup_on_wake = config::get_startup_on_wake();
     g_separate_wake_playlist = config::get_separate_wake_playlist();
     g_album_video_volume = config::get_album_video_volume();
     g_quick_settings_volume = config::get_quick_settings_volume();
+    g_quick_settings_enabled = config::get_quick_settings_enabled();
     std::scoped_lock lk(g_mutex);
     g_state_volume.store(
         g_active_state == applet_bgm::SilentTitleId

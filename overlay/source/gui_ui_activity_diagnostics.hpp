@@ -26,7 +26,6 @@ class UiActivityDiagnosticsGui final : public tsl::Gui {
     tsl::elm::ListItem* m_quick_settings_touch_closes{};
     tsl::elm::ListItem* m_loading_signal{};
     tsl::elm::ListItem* m_loading_overlay_signal{};
-    tsl::elm::ListItem* m_loading_overlay{};
     tsl::elm::ListItem* m_loading{};
     tsl::elm::ListItem* m_handoff{};
     tsl::elm::ListItem* m_loading_starts{};

@@ -31,7 +31,9 @@ struct Snapshot {
 // best-effort HID observer for the native hold-HOME panel.
 void Initialize(bool pdm_available);
 void Exit();
-void Poll(u64 application_process_id, u64 application_program_id);
+void Poll(
+    u64 application_process_id, u64 application_program_id,
+    u32 quick_settings_hold_ms);
 void CloseQuickSettings();
 
 TuneUiActivityObserverInfo GetInfo();

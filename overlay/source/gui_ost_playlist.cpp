@@ -4,6 +4,7 @@
 #include "config/config.hpp"
 #include "elm_text_block.hpp"
 #include "gui_browser.hpp"
+#include "gui_loading_settings.hpp"
 #include "ost_volume_slider.hpp"
 #include "ost_ui_state.hpp"
 #include "tune.h"
@@ -64,6 +65,19 @@ void OstPlaylistGui::populate() {
             "Videos and trimming use this level.\n"
             "Paused videos stay lowered.\n"
             "Changes use Mid-Song fades."));
+    }
+
+    if (m_title_id == applet_bgm::LoadingStateId) {
+        m_list->addItem(new tsl::elm::CategoryHeader("Loading Behavior"));
+        auto* timing = new tsl::elm::ListItem("Start / End Delay");
+        timing->setClickListener([](u64 keys) {
+            if (!(keys & HidNpadButton_A)) {
+                return false;
+            }
+            tsl::changeTo<LoadingSettingsGui>();
+            return true;
+        });
+        m_list->addItem(timing);
     }
 
     if (m_main_startup) {
@@ -127,6 +141,13 @@ void OstPlaylistGui::populate() {
         } else {
             m_list->addItem(new ElmTextBlock(
                 "Restarts each time this state opens."));
+        }
+
+        if (m_title_id == applet_bgm::UserSelectTitleId) {
+            m_list->addItem(new tsl::elm::CategoryHeader("Game Audio Warning"));
+            m_list->addItem(new ElmTextBlock(
+                "Some games already play music here.\n"
+                "This playlist may overlap their audio."));
         }
     }
 

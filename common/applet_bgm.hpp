@@ -12,6 +12,7 @@ struct Target {
 
 constexpr u64 QlaunchTitleId = 0x0100000000001000ULL;
 constexpr u64 AlbumTitleId = 0x010000000000100DULL;
+constexpr u64 UserSelectTitleId = 0x0100000000001007ULL;
 // Config/runtime-only IDs. They cannot collide with retail program IDs.
 constexpr u64 StartupTitleId = UINT64_MAX;
 constexpr u64 SettingsStateId = UINT64_MAX - 1;
@@ -40,7 +41,7 @@ constexpr std::array Targets = {
     Target{0x0100000000001003ULL, "Controllers"},
     Target{0x0100000000001013ULL, "User Page"},
     Target{0x0100000000001009ULL, "Mii Editor"},
-    Target{0x0100000000001007ULL, "User Select"},
+    Target{UserSelectTitleId, "User Select"},
     Target{0x0100000000001004ULL, "Data Management"},
     Target{0x0100000000001008ULL, "Software Keyboard"},
     Target{0x010000000000100AULL, "Web Applet"},

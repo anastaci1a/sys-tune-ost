@@ -79,9 +79,22 @@ void set_album_video_volume(float value);
 auto get_quick_settings_volume() -> float;
 void set_quick_settings_volume(float value);
 
+// Enables the Quick Settings multiplier without disabling HOME observations
+// that are also used to distinguish applet focus changes.
+auto get_quick_settings_enabled() -> bool;
+void set_quick_settings_enabled(bool value);
+
+// HOME hold duration used by the best-effort Quick Settings detector.
+auto get_quick_settings_hold_ms() -> u32;
+void set_quick_settings_hold_ms(u32 value);
+
 // Time between detecting an application launch and starting Loading OST.
 auto get_loading_start_delay_ms() -> u32;
 void set_loading_start_delay_ms(u32 value);
+
+// Time to retain Loading OST after application focus reports launch complete.
+auto get_loading_end_delay_ms() -> u32;
+void set_loading_end_delay_ms(u32 value);
 
 auto get_fade_in_ms() -> u32;
 void set_fade_in_ms(u32 value);

@@ -1,6 +1,6 @@
 export GITHASH 		:= $(shell git rev-parse --short HEAD)
-export VERSION 		:= 2.4.0-exp.qs9
-export API_VERSION 	:= 16
+export VERSION 		:= 2.4.0-exp.qs10
+export API_VERSION 	:= 17
 export WANT_FLAC 	:= 1
 export WANT_MP3 	:= 1
 export WANT_WAV 	:= 1

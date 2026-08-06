@@ -85,8 +85,8 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
 
     list->addItem(new tsl::elm::CategoryHeader("UI Activity Observer"));
     list->addItem(new ElmTextBlock(
-        "Tracks HOME input, applet focus, and\n"
-        "the application launch animation."));
+        "Tracks HOME input plus application\n"
+        "and library-applet focus."));
     m_status = new tsl::elm::ListItem("Observer Status");
     m_result = new tsl::elm::ListItem("Last Result");
     list->addItem(m_status);
@@ -137,8 +137,7 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
 
     list->addItem(new tsl::elm::CategoryHeader("Loading Screen"));
     m_loading_signal = new tsl::elm::ListItem("Application Signal");
-    m_loading_overlay_signal = new tsl::elm::ListItem("Launch UI Signal");
-    m_loading_overlay = new tsl::elm::ListItem("Launch UI Lifetime");
+    m_loading_overlay_signal = new tsl::elm::ListItem("overlayDisp Events");
     m_loading = new tsl::elm::ListItem("Loading State");
     m_handoff = new tsl::elm::ListItem("In-Game Handoff");
     m_loading_starts = new tsl::elm::ListItem("Loading Starts");
@@ -147,7 +146,6 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
     m_application_program = new tsl::elm::ListItem("Application Program");
     list->addItem(m_loading_signal);
     list->addItem(m_loading_overlay_signal);
-    list->addItem(m_loading_overlay);
     list->addItem(m_loading);
     list->addItem(m_handoff);
     list->addItem(m_loading_starts);
@@ -243,8 +241,6 @@ void UiActivityDiagnosticsGui::refresh() {
     SetValue(m_loading_overlay_signal,
         info.has_overlay_signal ? "Seen" : "Waiting",
         !info.has_overlay_signal);
-    SetValue(m_loading_overlay,
-        info.loading_overlay_active ? "Holding" : "Inactive");
     SetValue(m_loading, info.loading_active ? "Active" : "Inactive");
     SetValue(m_handoff,
         info.application_handoff_active ? "Silent" : "Inactive");
