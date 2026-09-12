@@ -1,31 +1,97 @@
-name: Build sys-tune and overlay
+name: Build sys-tune-ost release
 
-on: [push, pull_request]
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    container: devkitpro/devkita64:latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@master
-      with:
-        submodules: recursive
+      - name: Checkout the release commit or selected manual ref
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          submodules: recursive
+          persist-credentials: false
 
-    - name: Build
-      run: |
-        make -j$(nproc)
-        mkdir -p dist/switch/.overlays
-        mkdir -p dist/atmosphere/contents/4200000000000000/flags
-        touch dist/atmosphere/contents/4200000000000000/flags/boot2.flag
-        cp sys-tune/sys-tune.nsp dist/atmosphere/contents/4200000000000000/exefs.nsp
-        cp sys-tune/toolbox.json dist/atmosphere/contents/4200000000000000/
-        cp overlay/sys-tune-overlay.ovl dist/switch/.overlays/
+      - name: Determine package version
+        id: package
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          commit=$(git rev-parse --short HEAD)
+          if [[ "$GITHUB_EVENT_NAME" == release ]]; then
+            version=${RELEASE_TAG#v}
+          else
+            version=$(awk '/^export VERSION[[:space:]]*:=/ {print $NF; exit}' Makefile)
+            version="${version}-manual.${commit}"
+          fi
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Use a version tag such as v2.4.0 or v2.4.0-exp.qs11."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "asset=dist/sys-tune-ost-${version}.zip" >> "$GITHUB_OUTPUT"
 
-    - name: Deploy
-      if: ${{ github.event_name != 'pull_request' && github.event.action != 'unassigned' }}
-      uses: actions/upload-artifact@master
-      with:
-        name: sys-tune
-        path: dist
+      - name: Build both components and package with devkitPro
+        env:
+          BUILD_VERSION: ${{ steps.package.outputs.version }}
+          BUILD_COMMIT: ${{ steps.package.outputs.commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/src" --workdir /src \
+            --env BUILD_VERSION --env BUILD_COMMIT \
+            devkitpro/devkita64@sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd705de14b4440c00282 \
+            bash -euo pipefail -c '
+              git config --global --add safe.directory /src
+              aarch64-none-elf-g++ --version
+              pacman -Q libnx
+              make -j1 clean
+              make -j1 dist VERSION="$BUILD_VERSION" GITHASH="$BUILD_COMMIT" RELEASE=1
+              empty_objects=$(find overlay sys-tune -type f -name "*.o" -empty -print)
+              if [[ -n "$empty_objects" ]]; then
+                printf "Zero-byte build objects:\n%s\n" "$empty_objects" >&2
+                exit 1
+              fi
+              chown -R "$(stat -c %u:%g /src)" dist
+            '
+
+      - name: Verify install payloads and name the release ZIP
+        env:
+          BUILD_VERSION: ${{ steps.package.outputs.version }}
+          BUILD_COMMIT: ${{ steps.package.outputs.commit }}
+        run: python3 .github/scripts/package-release.py
+
+      - name: Save the install ZIP as a workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          path: ${{ steps.package.outputs.asset }}
+          archive: false
+          if-no-files-found: error
+
+      - name: Attach the install ZIP to the triggering release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_ASSET: ${{ steps.package.outputs.asset }}
+        # Do not silently replace an existing release asset on a rerun.
+        run: gh release upload "$RELEASE_TAG" "$RELEASE_ASSET"

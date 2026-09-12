@@ -68,3 +68,22 @@ make -j1 dist
 Always install the overlay and sysmodule from the same build. Compilation and
 packaging do not replace console validation. The handoff's detailed bug and
 hardware-validation checklist remains in the local `context/TODO.md`.
+
+## Automated release builds
+
+Publishing a GitHub release or prerelease runs the build workflow for its tagged
+commit. For example, tag `v2.4.1` produces `sys-tune-ost-2.4.1.zip`; a tag without
+the leading `v` also works, and prerelease suffixes are preserved. The tag's
+version is passed to the build so the overlay's version matches the package.
+Create new release tags from `main` after the workflow changes are present.
+
+The workflow builds both components serially with a pinned devkitPro image,
+checks the install ZIP against the built payloads, and attaches that ZIP to the
+release that triggered the run. The ZIP is also available directly as a workflow
+artifact. Uploading never silently overwrites an existing release asset.
+
+Ordinary pushes and PRs do not trigger this workflow. For a build before release,
+use Actions → Build sys-tune-ost release → Run workflow. Manual builds use a
+`-manual.<commit>` filename suffix and create only a workflow artifact; they do
+not create or modify a release. A saved release draft does not trigger a build
+until it is published.
