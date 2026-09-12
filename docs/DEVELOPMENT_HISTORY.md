@@ -184,3 +184,13 @@ files or rewriting prior commits.
 The final README revision presents a short product overview, core features,
 download/setup steps, two labeled inherited screenshots and manual serial
 build commands. Detailed behavior and specifications remain in `docs/`.
+
+## README screenshot refresh — 2026-09-12
+
+Four user-supplied qs11 JPEGs replaced the three inherited sample screenshots.
+The README now shows Home Menu playback, All Software playback, Manage
+Soundtracks and the playlist editor. The files have descriptive names in
+`sample/`, and the obsolete historical-screenshot caption was removed. Copies
+were checked against the originals by SHA-256; no image processing or runtime
+code changes were made. This visual refresh does not close console-validation
+items in the TODO checklist.

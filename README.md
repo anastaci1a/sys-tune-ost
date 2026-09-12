@@ -32,12 +32,13 @@ See the [known issues and testing checklist](docs/TODO.md).
 
 ## Screenshots
 
-These are older screenshots from the original sys-tune. The current menus
-differ, and the overlay is less transparent than shown.
-
-| Playback | Playlist |
+| Home Menu playback | All Software playback |
 | --- | --- |
-| ![Original sys-tune playback screen](sample/libtesla_1586882452.jpg) | ![Original sys-tune playlist screen](sample/libtesla_1586882672.jpg) |
+| ![Playback controls over the Home Menu](sample/home-menu-playback.jpg) | ![Playback controls over All Software](sample/all-software-playback.jpg) |
+
+| Manage Soundtracks | Playlist editor |
+| --- | --- |
+| ![Separate playlists for each system screen](sample/manage-soundtracks.jpg) | ![Songs and ordering controls in the playlist editor](sample/playlist-editor.jpg) |
 
 ## Build manually
 

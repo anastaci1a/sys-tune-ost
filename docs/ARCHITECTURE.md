@@ -46,16 +46,18 @@ All paths above are relative to the repository root, `sys-tune-ost/`.
 | `sys-tune/source/impl/dr_*.h` | Embedded audio decoders |
 | `sys-tune/source/impl/aud*`, `resamplers/` | Audio output and resampling |
 | `overlay/lib/` | Pinned libtesla Git submodule, not locally maintained application code |
-| `sample/` | Three inherited overlay screenshots; not current UI acceptance references |
+| `sample/` | Four user-provided qs11 overlay screenshots used by the root README |
 | `.vscode/` | Editor configuration; local settings ignored |
 | `LICENSE` | Inherited project license |
 | `dist/` | Disposable Makefile output and staging; ignored |
 | `_dist/` | Preserved local distribution archives; ignored, outside `make clean` targets |
 
-The root README uses `sample/libtesla_1586882452.jpg` (playback) and
-`sample/libtesla_1586882672.jpg` (playlist) as labeled historical screenshots.
-These existing files can be replaced without changing the README image links.
-The third inherited screenshot remains available in `sample/`.
+The root README displays `sample/home-menu-playback.jpg`,
+`sample/all-software-playback.jpg`, `sample/manage-soundtracks.jpg`, and
+`sample/playlist-editor.jpg` in a two-column gallery. The user supplied these
+qs11 captures on 2026-09-12; they replace all three inherited sample images.
+They show the interface, not proof that outstanding runtime regression checks
+have passed. The image files retain their original JPEG bytes.
 
 The former outer handoff and nested repository are consolidated here. There is
 one `.git/` at this root. The populated submodule's relative Git pointer and
