@@ -52,6 +52,11 @@ All paths above are relative to the repository root, `sys-tune-ost/`.
 | `dist/` | Disposable Makefile output and staging; ignored |
 | `_dist/` | Preserved local distribution archives; ignored, outside `make clean` targets |
 
+The root README uses `sample/libtesla_1586882452.jpg` (playback) and
+`sample/libtesla_1586882672.jpg` (playlist) as labeled historical screenshots.
+These existing files can be replaced without changing the README image links.
+The third inherited screenshot remains available in `sample/`.
+
 The former outer handoff and nested repository are consolidated here. There is
 one `.git/` at this root. The populated submodule's relative Git pointer and
 worktree relationship remain valid when the entire repository moves together.

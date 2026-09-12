@@ -180,3 +180,7 @@ kept locally in ignored `docs/evidence/`; release ZIPs remain in ignored
 `_dist/`. Evidence was initially included in the documentation commit and then
 removed from the current index at the user's request, without deleting local
 files or rewriting prior commits.
+
+The final README revision presents a short product overview, core features,
+download/setup steps, two labeled inherited screenshots and manual serial
+build commands. Detailed behavior and specifications remain in `docs/`.
