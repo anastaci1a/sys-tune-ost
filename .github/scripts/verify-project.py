@@ -40,14 +40,17 @@ def verify_docs():
             if re.match(r'[a-zA-Z][a-zA-Z0-9+.-]*:', link) or link.startswith('#'):
                 continue
             target = (path.parent / link.split('#', 1)[0]).resolve()
-            # Historical distribution archives are deliberately optional in a clone.
-            if target.is_relative_to(ROOT / '_dist'):
+            # Historical archives and evidence are deliberately optional in a clone.
+            if target.is_relative_to(ROOT / '_dist') or target.is_relative_to(DOCS / 'evidence'):
                 continue
             require(target.exists(), f'Broken link in {path.relative_to(ROOT)}: {link}')
     print(f'PASS: {len(files)} documentation files and local links')
 
 
 def verify_evidence():
+    if not (DOCS / 'evidence').exists():
+        print('SKIP: optional local docs/evidence directory is absent')
+        return
     manifest = json.loads((DOCS / 'evidence/preservation.json').read_text())
     for item in manifest['files']:
         path = safe_path(DOCS, item['path'])

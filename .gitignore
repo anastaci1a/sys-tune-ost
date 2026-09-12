@@ -9,4 +9,5 @@
 build
 dist
 /_dist/
+/docs/evidence/
 *.zip

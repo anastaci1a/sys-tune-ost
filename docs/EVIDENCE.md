@@ -1,11 +1,13 @@
 # Evidence inventory and interpretation
 
-The evidence directory preserves the original non-Markdown context files.
+The ignored local `docs/evidence/` directory preserves the original non-Markdown context files.
 Their original bytes are covered by [preservation.json](evidence/preservation.json).
 Source history, user observations and prior assistant interpretations are
 separate evidence classes; compilation and successful packaging are not console
 confirmation. The historical narrative uses original commit IDs, translated by
-the rewrite map where needed.
+the rewrite map where needed. This directory is not required or included in a
+fresh source clone; links into it refer to optional local supporting material.
+Ignoring it removes it from the current tracked tree, not from prior commits.
 
 | Evidence | Meaning and limits |
 | --- | --- |
@@ -27,6 +29,8 @@ Historical paths in these original records intentionally retain `context/`,
 for evidence, the repository root for source, and `_dist/` for archives.
 These snapshots are not instructions to restore an old branch or folder layout.
 The active read-only check is `.github/scripts/verify-project.py`.
+It skips evidence checks when that optional directory is absent. Explicit
+`--archives` verification requires the local evidence manifest and `_dist/` ZIPs.
 
 Six original pre-2.3.1 ZIPs, a complete original chat export, the historical
 toolchain digest/debug binaries and the later qs10 fatal report were not

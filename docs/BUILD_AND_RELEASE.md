@@ -93,4 +93,4 @@ If the reported fatal occurs again during ordinary use, retain its actual `.bin`
 
 ## Read-only repository checks
 
-`python3 .github/scripts/verify-project.py` checks documentation links and preserved evidence. `--archives` additionally verifies the optional local historical ZIPs in `_dist/` against the original manifest (payload hashes, CRC, identities and ExeFS structure). Neither mode requires an unchanged historical HEAD or mutates refs. `git fsck --full --no-dangling` and `git submodule status --recursive` check repository integrity separately.
+`python3 .github/scripts/verify-project.py` checks documentation links and any locally present preserved evidence. `docs/evidence/` and `_dist/` are ignored and optional in a source clone; references into them are local evidence links. `--archives` explicitly requires both directories and verifies historical ZIPs against the original manifest (payload hashes, CRC, identities and ExeFS structure). Neither mode requires an unchanged historical HEAD or mutates refs. `git fsck --full --no-dangling` and `git submodule status --recursive` check repository integrity separately.

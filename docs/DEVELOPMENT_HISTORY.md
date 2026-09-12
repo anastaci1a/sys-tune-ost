@@ -174,3 +174,9 @@ worktree is clean. The host's `git submodule` shell helper could not run because
 its shell utilities were unavailable, so those dependency checks used direct
 Git commands instead. Runtime source, Makefiles and the release workflow are
 unchanged. No new toolchain build or console tests were run.
+
+The final layout uses the user-requested `docs/` name. Supporting evidence is
+kept locally in ignored `docs/evidence/`; release ZIPs remain in ignored
+`_dist/`. Evidence was initially included in the documentation commit and then
+removed from the current index at the user's request, without deleting local
+files or rewriting prior commits.

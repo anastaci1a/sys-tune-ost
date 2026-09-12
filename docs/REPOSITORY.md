@@ -19,10 +19,11 @@ The original custom source began at upstream `v2.1.0-beta.1` (`2a6c31c`);
 the preserved `origin/master` at `24132cf` in the original evidence was a later
 upstream reference, not the first custom commit's parent.
 
-The root now opens directly in Git tools. The repository tree includes `docs`
-and its evidence, including the pre-author-rewrite recovery bundle. `_dist/`
-is local, ignored storage for historical install ZIPs; `dist/` is disposable
-build output. Neither is required in a source clone. No historical ZIP is
+The root now opens directly in Git tools. Project documentation in `docs/` is
+tracked. `docs/evidence/`, including the pre-author-rewrite recovery bundle,
+is preserved locally and ignored, as is `_dist/` storage for historical install
+ZIPs. `dist/` is disposable build output. These local supporting directories
+are not required in a source clone. No historical ZIP is
 rebuilt or renamed internally by this layout change.
 
 The [development history](DEVELOPMENT_HISTORY.md) and

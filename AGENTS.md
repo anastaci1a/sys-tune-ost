@@ -39,7 +39,8 @@ do not silently reinterpret intended behavior to match an accidental regression.
   user feedback with its build and concrete observation under the relevant
   stable TODO ID; preserve contradictory or missing evidence explicitly.
 - Preserve original reports, ZIPs, hashes and historical provenance. Keep local
-  release archives in ignored `_dist/`, outside `dist/` cleanup. Do not rewrite
+  evidence in ignored `docs/evidence/` and release archives in ignored `_dist/`,
+  outside `dist/` cleanup. Do not rewrite
   released history or overwrite historical binaries. Retired scripts under
   `docs/evidence/*.txt` are records, not runnable maintenance instructions.
 - Default any requested push to the configured fork, never upstream. Ordinary
