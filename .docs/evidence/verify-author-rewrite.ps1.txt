@@ -1,0 +1,37 @@
+$ErrorActionPreference = 'Stop'
+function Invoke-RepoGit {
+    $result = & git -c 'safe.directory=C:/Users/anast/Backup/Devices/Switch [SYNC]/Overlays/sys-tune/project' @args
+    if ($LASTEXITCODE -ne 0) { throw "Git failed: $args" }
+    $result
+}
+$rows = @(Import-Csv -LiteralPath ../context/author-rewrite-map.csv)
+if ($rows.Count -ne 245) { throw "Unexpected commit count: $($rows.Count)" }
+$map = @{}
+foreach ($row in $rows) { $map[$row.old_commit] = $row.new_commit }
+$changed = @($rows | Where-Object { $_.old_commit -ne $_.new_commit })
+if ($changed.Count -ne 18) { throw "Unexpected changed count: $($changed.Count)" }
+foreach ($row in $changed) {
+    $old = (Invoke-RepoGit cat-file commit $row.old_commit) -join "`n"
+    $new = (Invoke-RepoGit cat-file commit $row.new_commit) -join "`n"
+    $expected = [regex]::Replace($old, '(?m)^(author|committer) (?:OpenAI Codex|Codex) <codex@openai.com>', '$1 Ana Jahnel <48846277+anastaci1a@users.noreply.github.com>')
+    $expected = [regex]::Replace($expected, '(?m)^parent ([0-9a-f]{40})$', { param($match) 'parent ' + $map[$match.Groups[1].Value] })
+    if ($expected -cne $new) { throw "Unexpected metadata/content change: $($row.old_commit)" }
+}
+foreach ($line in Get-Content -LiteralPath ../context/author-rewrite-refs-before.txt) {
+    $ref, $oldId = $line.Split(' ')
+    $newId = Invoke-RepoGit rev-parse $ref
+    $expectedId = if ($map.ContainsKey($oldId)) { $map[$oldId] } else { $oldId }
+    if ($newId -ne $expectedId) { throw "Ref mismatch: $ref" }
+}
+$tree = Invoke-RepoGit rev-parse 'HEAD^{tree}'
+if ($tree -ne (Get-Content -LiteralPath ../context/author-rewrite-tree-before.txt)) { throw 'HEAD tree changed' }
+if (Invoke-RepoGit status --porcelain) { throw 'Working tree changed' }
+# Retain the independent bundle, but remove filter-branch backup refs from live history.
+foreach ($ref in @(Invoke-RepoGit for-each-ref '--format=%(refname)' refs/original/)) {
+    Invoke-RepoGit update-ref -d $ref
+}
+if (Invoke-RepoGit log --all '--format=%an <%ae> | %cn <%ce>' | Select-String 'codex@openai.com|OpenAI Codex') { throw 'Codex identity still reachable' }
+Invoke-RepoGit fsck --full --no-dangling
+Invoke-RepoGit log -1 '--format=%H%n%an <%ae>%n%cn <%ce>'
+Invoke-RepoGit status --short --branch
+"Verified: 18 author/committer rewrites; 227 commits unchanged; every ref and commit tree preserved."

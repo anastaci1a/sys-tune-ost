@@ -1,0 +1,410 @@
+﻿2026-09-12T18:51:27.3648342Z Current runner version: '2.337.0'
+2026-09-12T18:51:27.3671878Z ##[group]Runner Image Provisioner
+2026-09-12T18:51:27.3672635Z Hosted Compute Agent
+2026-09-12T18:51:27.3673353Z Version: 20260828.587
+2026-09-12T18:51:27.3673947Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-12T18:51:27.3674582Z Build Date: 2026-08-28T16:44:25Z
+2026-09-12T18:51:27.3675123Z Worker ID: {80318037-d178-4b88-9d54-870a1da1d847}
+2026-09-12T18:51:27.3675737Z Azure Region: northcentralus
+2026-09-12T18:51:27.3676241Z ##[endgroup]
+2026-09-12T18:51:27.3677343Z ##[group]Operating System
+2026-09-12T18:51:27.3677939Z Ubuntu
+2026-09-12T18:51:27.3678364Z 24.04.5
+2026-09-12T18:51:27.3678813Z LTS
+2026-09-12T18:51:27.3679254Z ##[endgroup]
+2026-09-12T18:51:27.3679724Z ##[group]Runner Image
+2026-09-12T18:51:27.3680304Z Image: ubuntu-24.04
+2026-09-12T18:51:27.3680769Z Version: 20260907.300.1
+2026-09-12T18:51:27.3681824Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-12T18:51:27.3683217Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+2026-09-12T18:51:27.3684077Z ##[endgroup]
+2026-09-12T18:51:27.3684942Z ##[group]GITHUB_TOKEN Permissions
+2026-09-12T18:51:27.3687020Z Contents: write
+2026-09-12T18:51:27.3687534Z Metadata: read
+2026-09-12T18:51:27.3688064Z ##[endgroup]
+2026-09-12T18:51:27.3689739Z Secret source: Actions
+2026-09-12T18:51:27.3690561Z Cache mode: write
+2026-09-12T18:51:27.3691313Z Prepare workflow directory
+2026-09-12T18:51:27.3996312Z Prepare all required actions
+2026-09-12T18:51:27.4052166Z Getting action download info
+2026-09-12T18:51:27.6001794Z Download action repository 'actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803' (SHA:d23441a48e516b6c34aea4fa41551a30e30af803)
+2026-09-12T18:51:27.7909683Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-09-12T18:51:27.9828407Z Complete job name: build
+2026-09-12T18:51:28.0429068Z ##[group]Run actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+2026-09-12T18:51:28.0429870Z with:
+2026-09-12T18:51:28.0430215Z   submodules: recursive
+2026-09-12T18:51:28.0430601Z   persist-credentials: false
+2026-09-12T18:51:28.0431018Z   repository: anastaci1a/sys-tune-ost
+2026-09-12T18:51:28.0434338Z   token: ***
+2026-09-12T18:51:28.0434682Z   ssh-strict: true
+2026-09-12T18:51:28.0435033Z   ssh-user: git
+2026-09-12T18:51:28.0435444Z   clean: true
+2026-09-12T18:51:28.0435993Z   sparse-checkout-cone-mode: true
+2026-09-12T18:51:28.0436408Z   fetch-depth: 1
+2026-09-12T18:51:28.0436748Z   fetch-tags: false
+2026-09-12T18:51:28.0437094Z   show-progress: true
+2026-09-12T18:51:28.0437447Z   lfs: false
+2026-09-12T18:51:28.0437777Z   set-safe-directory: true
+2026-09-12T18:51:28.0438167Z   allow-unsafe-pr-checkout: false
+2026-09-12T18:51:28.0438737Z ##[endgroup]
+2026-09-12T18:51:28.1263665Z Syncing repository: anastaci1a/sys-tune-ost
+2026-09-12T18:51:28.1265827Z ##[group]Getting Git version info
+2026-09-12T18:51:28.1266826Z Working directory is '/home/runner/work/sys-tune-ost/sys-tune-ost'
+2026-09-12T18:51:28.1268095Z [command]/usr/bin/git version
+2026-09-12T18:51:28.1311349Z git version 2.55.0
+2026-09-12T18:51:28.1329131Z ##[endgroup]
+2026-09-12T18:51:28.1340986Z Temporarily overriding HOME='/home/runner/work/_temp/921686fd-6567-44da-8826-1c34e3eb9d02' before making global git config changes
+2026-09-12T18:51:28.1342705Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-12T18:51:28.1345113Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sys-tune-ost/sys-tune-ost
+2026-09-12T18:51:28.1628090Z Deleting the contents of '/home/runner/work/sys-tune-ost/sys-tune-ost'
+2026-09-12T18:51:28.1632474Z ##[group]Determining repository object format
+2026-09-12T18:51:28.1634142Z ##[endgroup]
+2026-09-12T18:51:28.1635020Z ##[group]Initializing the repository
+2026-09-12T18:51:28.1638181Z [command]/usr/bin/git init /home/runner/work/sys-tune-ost/sys-tune-ost
+2026-09-12T18:51:28.1735516Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-12T18:51:28.1736791Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-09-12T18:51:28.1737933Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-09-12T18:51:28.1738837Z hint: call:
+2026-09-12T18:51:28.1739314Z hint:
+2026-09-12T18:51:28.1739928Z hint: 	git config --global init.defaultBranch <name>
+2026-09-12T18:51:28.1740669Z hint:
+2026-09-12T18:51:28.1741365Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-12T18:51:28.1742513Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-12T18:51:28.1743640Z hint:
+2026-09-12T18:51:28.1744142Z hint: 	git branch -m <name>
+2026-09-12T18:51:28.1744719Z hint:
+2026-09-12T18:51:28.1745483Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-09-12T18:51:28.1750845Z Initialized empty Git repository in /home/runner/work/sys-tune-ost/sys-tune-ost/.git/
+2026-09-12T18:51:28.1759078Z [command]/usr/bin/git remote add origin https://github.com/anastaci1a/sys-tune-ost
+2026-09-12T18:51:28.1816376Z ##[endgroup]
+2026-09-12T18:51:28.1817340Z ##[group]Disabling automatic garbage collection
+2026-09-12T18:51:28.1820175Z [command]/usr/bin/git config --local gc.auto 0
+2026-09-12T18:51:28.1863638Z ##[endgroup]
+2026-09-12T18:51:28.1864928Z ##[group]Setting up auth
+2026-09-12T18:51:28.1865633Z Removing SSH command configuration
+2026-09-12T18:51:28.1870502Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-12T18:51:28.1900324Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-12T18:51:28.2193574Z Removing HTTP extra header
+2026-09-12T18:51:28.2199199Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-12T18:51:28.2229694Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-12T18:51:28.2414406Z Removing includeIf entries pointing to credentials config files
+2026-09-12T18:51:28.2420128Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-12T18:51:28.2451839Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-12T18:51:28.2647060Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-12T18:51:28.2685327Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/sys-tune-ost/sys-tune-ost/.git.path /home/runner/work/_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:28.2718349Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/sys-tune-ost/sys-tune-ost/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:28.2750182Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:28.2780297Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:28.2808269Z ##[endgroup]
+2026-09-12T18:51:28.2809169Z ##[group]Fetching the repository
+2026-09-12T18:51:28.2815909Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +98f0389a4851ecd6272c92e4b6b04d608e3960cb:refs/remotes/origin/main
+2026-09-12T18:51:29.1320209Z From https://github.com/anastaci1a/sys-tune-ost
+2026-09-12T18:51:29.1321675Z  * [new ref]         98f0389a4851ecd6272c92e4b6b04d608e3960cb -> origin/main
+2026-09-12T18:51:29.1329904Z [command]/usr/bin/git branch --list --remote origin/main
+2026-09-12T18:51:29.1354690Z   origin/main
+2026-09-12T18:51:29.1361521Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+2026-09-12T18:51:29.1383796Z 98f0389a4851ecd6272c92e4b6b04d608e3960cb
+2026-09-12T18:51:29.1387452Z ##[endgroup]
+2026-09-12T18:51:29.1388520Z ##[group]Determining the checkout info
+2026-09-12T18:51:29.1389694Z ##[endgroup]
+2026-09-12T18:51:29.1392437Z [command]/usr/bin/git sparse-checkout disable
+2026-09-12T18:51:29.1433541Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-12T18:51:29.1459306Z ##[group]Checking out the ref
+2026-09-12T18:51:29.1460861Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-09-12T18:51:29.1598025Z Switched to a new branch 'main'
+2026-09-12T18:51:29.1603832Z branch 'main' set up to track 'origin/main'.
+2026-09-12T18:51:29.1609971Z ##[endgroup]
+2026-09-12T18:51:29.1611549Z ##[group]Setting up auth for fetching submodules
+2026-09-12T18:51:29.1614637Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-12T18:51:29.1647578Z [command]/usr/bin/git config --global include.path /home/runner/work/_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:29.1675700Z [command]/usr/bin/git config --global --unset-all url.https://github.com/.insteadOf
+2026-09-12T18:51:29.1704906Z [command]/usr/bin/git config --global --add url.https://github.com/.insteadOf git@github.com:
+2026-09-12T18:51:29.1738580Z [command]/usr/bin/git config --global --add url.https://github.com/.insteadOf org-48846277@github.com:
+2026-09-12T18:51:29.1766270Z ##[endgroup]
+2026-09-12T18:51:29.1768583Z ##[group]Fetching submodules
+2026-09-12T18:51:29.1770791Z [command]/usr/bin/git submodule sync --recursive
+2026-09-12T18:51:29.1968842Z [command]/usr/bin/git -c protocol.version=2 submodule update --init --force --depth=1 --recursive
+2026-09-12T18:51:29.2161088Z Submodule 'overlay/lib' (git@github.com:WerWolv/libtesla.git) registered for path 'overlay/lib'
+2026-09-12T18:51:29.2184234Z Cloning into '/home/runner/work/sys-tune-ost/sys-tune-ost/overlay/lib'...
+2026-09-12T18:51:29.8101511Z Submodule path 'overlay/lib': checked out 'f766e9b607a05e9756843cbd62b3bfb98be1646c'
+2026-09-12T18:51:29.8126596Z [command]/usr/bin/git submodule foreach --recursive git config --local gc.auto 0
+2026-09-12T18:51:29.8312837Z Entering 'overlay/lib'
+2026-09-12T18:51:29.8355439Z ##[endgroup]
+2026-09-12T18:51:29.8395141Z [command]/usr/bin/git log -1 --format=%H
+2026-09-12T18:51:29.8420610Z 98f0389a4851ecd6272c92e4b6b04d608e3960cb
+2026-09-12T18:51:29.8430140Z ##[group]Removing auth
+2026-09-12T18:51:29.8430623Z Removing SSH command configuration
+2026-09-12T18:51:29.8434387Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-12T18:51:29.8468554Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-12T18:51:29.8658392Z Entering 'overlay/lib'
+2026-09-12T18:51:29.8701653Z Removing HTTP extra header
+2026-09-12T18:51:29.8706853Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-12T18:51:29.8743690Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-12T18:51:29.8926361Z Entering 'overlay/lib'
+2026-09-12T18:51:29.8968932Z Removing includeIf entries pointing to credentials config files
+2026-09-12T18:51:29.8971959Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-12T18:51:29.8997057Z includeif.gitdir:/home/runner/work/sys-tune-ost/sys-tune-ost/.git.path
+2026-09-12T18:51:29.8997791Z includeif.gitdir:/home/runner/work/sys-tune-ost/sys-tune-ost/.git/worktrees/*.path
+2026-09-12T18:51:29.8998210Z includeif.gitdir:/github/workspace/.git.path
+2026-09-12T18:51:29.8998561Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-09-12T18:51:29.9004597Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/sys-tune-ost/sys-tune-ost/.git.path
+2026-09-12T18:51:29.9026407Z /home/runner/work/_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:29.9033529Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/sys-tune-ost/sys-tune-ost/.git.path /home/runner/work/_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:29.9064028Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/sys-tune-ost/sys-tune-ost/.git/worktrees/*.path
+2026-09-12T18:51:29.9084897Z /home/runner/work/_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:29.9092070Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/sys-tune-ost/sys-tune-ost/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:29.9123679Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-09-12T18:51:29.9145106Z /github/runner_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:29.9150391Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:29.9180226Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-09-12T18:51:29.9201923Z /github/runner_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:29.9207238Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config
+2026-09-12T18:51:29.9236426Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-12T18:51:29.9419616Z Entering 'overlay/lib'
+2026-09-12T18:51:29.9437830Z file:/home/runner/work/sys-tune-ost/sys-tune-ost/.git/modules/overlay/lib/config	remote.origin.url
+2026-09-12T18:51:29.9463595Z [command]/usr/bin/git config --file /home/runner/work/sys-tune-ost/sys-tune-ost/.git/modules/overlay/lib/config --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-12T18:51:29.9487972Z Removing credentials config '/home/runner/work/_temp/git-credentials-04c83648-ce32-4d16-ab73-57aa95c132e0.config'
+2026-09-12T18:51:29.9495594Z ##[endgroup]
+2026-09-12T18:51:29.9665944Z ##[group]Run set -euo pipefail
+2026-09-12T18:51:29.9666307Z [36;1mset -euo pipefail[0m
+2026-09-12T18:51:29.9666600Z [36;1mcommit=$(git rev-parse --short HEAD)[0m
+2026-09-12T18:51:29.9666924Z [36;1mif [[ "$GITHUB_EVENT_NAME" == release ]]; then[0m
+2026-09-12T18:51:29.9667219Z [36;1m  version=${RELEASE_TAG#v}[0m
+2026-09-12T18:51:29.9667451Z [36;1melse[0m
+2026-09-12T18:51:29.9667748Z [36;1m  version=$(awk '/^export VERSION[[:space:]]*:=/ {print $NF; exit}' Makefile)[0m
+2026-09-12T18:51:29.9668113Z [36;1m  version="${version}-manual.${commit}"[0m
+2026-09-12T18:51:29.9668373Z [36;1mfi[0m
+2026-09-12T18:51:29.9668686Z [36;1mif [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then[0m
+2026-09-12T18:51:29.9669132Z [36;1m  echo "::error::Use a version tag such as v2.4.0 or v2.4.0-exp.qs11."[0m
+2026-09-12T18:51:29.9669454Z [36;1m  exit 1[0m
+2026-09-12T18:51:29.9669651Z [36;1mfi[0m
+2026-09-12T18:51:29.9669917Z [36;1mecho "version=$version" >> "$GITHUB_OUTPUT"[0m
+2026-09-12T18:51:29.9670225Z [36;1mecho "commit=$commit" >> "$GITHUB_OUTPUT"[0m
+2026-09-12T18:51:29.9670726Z [36;1mecho "asset=dist/sys-tune-ost-${version}.zip" >> "$GITHUB_OUTPUT"[0m
+2026-09-12T18:51:29.9707297Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-09-12T18:51:29.9707619Z env:
+2026-09-12T18:51:29.9707811Z   RELEASE_TAG: 
+2026-09-12T18:51:29.9708012Z ##[endgroup]
+2026-09-12T18:51:29.9918137Z ##[group]Run set -euo pipefail
+2026-09-12T18:51:29.9918493Z [36;1mset -euo pipefail[0m
+2026-09-12T18:51:29.9918740Z [36;1mdocker run --rm \[0m
+2026-09-12T18:51:29.9919049Z [36;1m  --volume "$GITHUB_WORKSPACE:/src" --workdir /src \[0m
+2026-09-12T18:51:29.9919387Z [36;1m  --env BUILD_VERSION --env BUILD_COMMIT \[0m
+2026-09-12T18:51:29.9919838Z [36;1m  devkitpro/devkita64@sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd705de14b4440c00282 \[0m
+2026-09-12T18:51:29.9920276Z [36;1m  bash -euo pipefail -c '[0m
+2026-09-12T18:51:29.9920570Z [36;1m    export DEVKITA64="$DEVKITPRO/devkitA64"[0m
+2026-09-12T18:51:29.9920885Z [36;1m    export PATH="$DEVKITA64/bin:$PATH"[0m
+2026-09-12T18:51:29.9921211Z [36;1m    git config --global --add safe.directory /src[0m
+2026-09-12T18:51:29.9921546Z [36;1m    "$DEVKITA64/bin/aarch64-none-elf-g++" --version[0m
+2026-09-12T18:51:29.9921841Z [36;1m    dkp-pacman -Q libnx[0m
+2026-09-12T18:51:29.9922103Z [36;1m    make -j1 clean[0m
+2026-09-12T18:51:29.9922471Z [36;1m    make -j1 dist VERSION="$BUILD_VERSION" GITHASH="$BUILD_COMMIT" RELEASE=1[0m
+2026-09-12T18:51:29.9923153Z [36;1m    empty_objects=$(find overlay sys-tune -type f -name "*.o" -empty -print)[0m
+2026-09-12T18:51:29.9923535Z [36;1m    if [[ -n "$empty_objects" ]]; then[0m
+2026-09-12T18:51:29.9923883Z [36;1m      printf "Zero-byte build objects:\n%s\n" "$empty_objects" >&2[0m
+2026-09-12T18:51:29.9924205Z [36;1m      exit 1[0m
+2026-09-12T18:51:29.9924412Z [36;1m    fi[0m
+2026-09-12T18:51:29.9924643Z [36;1m    chown -R "$(stat -c %u:%g /src)" dist[0m
+2026-09-12T18:51:29.9924913Z [36;1m  '[0m
+2026-09-12T18:51:29.9958145Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-09-12T18:51:29.9958474Z env:
+2026-09-12T18:51:29.9958702Z   BUILD_VERSION: 2.4.0-exp.qs11-manual.98f0389
+2026-09-12T18:51:29.9958976Z   BUILD_COMMIT: 98f0389
+2026-09-12T18:51:29.9959196Z ##[endgroup]
+2026-09-12T18:51:30.0563888Z Unable to find image 'devkitpro/devkita64@sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd705de14b4440c00282' locally
+2026-09-12T18:51:30.3835963Z docker.io/devkitpro/devkita64@sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd705de14b4440c00282: Pulling from devkitpro/devkita64
+2026-09-12T18:51:30.5055940Z 59e22667830b: Pulling fs layer
+2026-09-12T18:51:30.5056523Z 74701f26999d: Pulling fs layer
+2026-09-12T18:51:30.5056829Z ea5d3216df1f: Pulling fs layer
+2026-09-12T18:51:30.5057141Z da5be4661c9a: Pulling fs layer
+2026-09-12T18:51:30.5057418Z da5be4661c9a: Waiting
+2026-09-12T18:51:30.7310863Z 59e22667830b: Verifying Checksum
+2026-09-12T18:51:30.7311202Z 59e22667830b: Download complete
+2026-09-12T18:51:30.7321164Z ea5d3216df1f: Verifying Checksum
+2026-09-12T18:51:30.7321923Z ea5d3216df1f: Download complete
+2026-09-12T18:51:31.4431646Z 74701f26999d: Verifying Checksum
+2026-09-12T18:51:31.4432076Z 74701f26999d: Download complete
+2026-09-12T18:51:31.9091412Z da5be4661c9a: Verifying Checksum
+2026-09-12T18:51:31.9091747Z da5be4661c9a: Download complete
+2026-09-12T18:51:32.4510986Z 59e22667830b: Pull complete
+2026-09-12T18:51:45.5667768Z 74701f26999d: Pull complete
+2026-09-12T18:51:46.1232510Z ea5d3216df1f: Pull complete
+2026-09-12T18:51:57.3429951Z da5be4661c9a: Pull complete
+2026-09-12T18:51:57.3471905Z Digest: sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd705de14b4440c00282
+2026-09-12T18:51:57.3477687Z Status: Downloaded newer image for devkitpro/devkita64@sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd705de14b4440c00282
+2026-09-12T18:51:57.4988183Z aarch64-none-elf-g++ (devkitA64) 15.2.0
+2026-09-12T18:51:57.4988584Z Copyright (C) 2025 Free Software Foundation, Inc.
+2026-09-12T18:51:57.4988950Z This is free software; see the source for copying conditions.  There is NO
+2026-09-12T18:51:57.4989915Z warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+2026-09-12T18:51:57.4990171Z 
+2026-09-12T18:51:57.5279820Z libnx 4.12.0-1
+2026-09-12T18:51:57.5304829Z make -C sys-tune/nxExt clean
+2026-09-12T18:51:57.5313599Z make[1]: Entering directory '/src/sys-tune/nxExt'
+2026-09-12T18:51:57.5379897Z clean ...
+2026-09-12T18:51:57.5388353Z make[1]: Leaving directory '/src/sys-tune/nxExt'
+2026-09-12T18:51:57.5390722Z make -C overlay clean
+2026-09-12T18:51:57.5399276Z make[1]: Entering directory '/src/overlay'
+2026-09-12T18:51:57.5580604Z make[1]: Leaving directory '/src/overlay'
+2026-09-12T18:51:57.5581074Z make -C sys-tune clean
+2026-09-12T18:51:57.5588888Z make[1]: Entering directory '/src/sys-tune'
+2026-09-12T18:51:57.5655148Z clean ...
+2026-09-12T18:51:57.5661828Z make[1]: Leaving directory '/src/sys-tune'
+2026-09-12T18:51:57.5663403Z rm -r dist
+2026-09-12T18:51:57.5669022Z rm: cannot remove 'dist': No such file or directory
+2026-09-12T18:51:57.5671086Z make: [Makefile:14: clean] Error 1 (ignored)
+2026-09-12T18:51:57.5671529Z rm sys-tune-*-*.zip
+2026-09-12T18:51:57.5681039Z rm: cannot remove 'sys-tune-*-*.zip': No such file or directory
+2026-09-12T18:51:57.5683854Z make: [Makefile:15: clean] Error 1 (ignored)
+2026-09-12T18:51:57.5707650Z make -C overlay
+2026-09-12T18:51:57.5716058Z make[1]: Entering directory '/src/overlay'
+2026-09-12T18:51:57.5867216Z elm_status_bar.cpp
+2026-09-12T18:52:00.1899135Z gui_album_video_diagnostics.cpp
+2026-09-12T18:52:03.5363216Z gui_applet_bgm.cpp
+2026-09-12T18:52:06.8351749Z gui_browser.cpp
+2026-09-12T18:52:10.9980300Z gui_error.cpp
+2026-09-12T18:52:13.4873322Z gui_loading_settings.cpp
+2026-09-12T18:52:16.8821132Z gui_main.cpp
+2026-09-12T18:52:20.5742538Z gui_misc.cpp
+2026-09-12T18:52:24.5640329Z gui_ost_playlist.cpp
+2026-09-12T18:52:29.1009353Z gui_power_state_diagnostics.cpp
+2026-09-12T18:52:32.4771447Z gui_qlaunch_scene_diagnostics.cpp
+2026-09-12T18:52:36.2220427Z gui_quick_settings_settings.cpp
+2026-09-12T18:52:40.1049481Z gui_ui_activity_diagnostics.cpp
+2026-09-12T18:52:43.7554514Z main.cpp
+2026-09-12T18:52:48.0845504Z ost_ui_state.cpp
+2026-09-12T18:52:48.3901302Z sdmc.cpp
+2026-09-12T18:52:48.5130277Z config.cpp
+2026-09-12T18:52:49.0729801Z pm.cpp
+2026-09-12T18:52:49.2526629Z tune.c
+2026-09-12T18:52:50.3981125Z minGlue.c
+2026-09-12T18:52:50.5156386Z minIni.c
+2026-09-12T18:52:50.8232107Z linking sys-tune-overlay.elf
+2026-09-12T18:52:50.9819958Z built ... sys-tune-overlay.nacp
+2026-09-12T18:52:50.9860533Z built ... sys-tune-overlay.ovl
+2026-09-12T18:52:50.9863511Z make[1]: Leaving directory '/src/overlay'
+2026-09-12T18:52:50.9865038Z make -C sys-tune/nxExt
+2026-09-12T18:52:50.9874146Z make[1]: Entering directory '/src/sys-tune/nxExt'
+2026-09-12T18:52:51.0032066Z ipc_server.c
+2026-09-12T18:52:51.1558345Z libnxExt.a
+2026-09-12T18:52:51.1589331Z make[1]: Leaving directory '/src/sys-tune/nxExt'
+2026-09-12T18:52:51.1590471Z make -C sys-tune
+2026-09-12T18:52:51.1600055Z make[1]: Entering directory '/src/sys-tune'
+2026-09-12T18:52:51.1749464Z album_video_observer.cpp
+2026-09-12T18:52:51.5328741Z main.cpp
+2026-09-12T18:52:52.4803427Z power_state_observer.cpp
+2026-09-12T18:52:52.9233863Z qlaunch_scene_observer.cpp
+2026-09-12T18:52:53.2815771Z tune_service.cpp
+2026-09-12T18:52:54.2217134Z ui_activity_observer.cpp
+2026-09-12T18:52:54.6124537Z music_player.cpp
+2026-09-12T18:52:55.2976325Z /src/sys-tune/source/impl/music_player.cpp: In member function 'std::pair<float, float> tune::impl::{anonymous}::GainEnvelope::Advance(u64)':
+2026-09-12T18:52:55.2977191Z /src/sys-tune/source/impl/music_player.cpp:688:54: note: parameter passing for argument of type 'std::pair<float, float>' when C++17 is enabled changed to match C++14 in GCC 10.1
+2026-09-12T18:52:55.2977765Z   688 |     std::pair<float, float> Advance(u64 frame_count) {
+2026-09-12T18:52:55.2978042Z       |                                                      ^
+2026-09-12T18:52:55.7685182Z source.cpp
+2026-09-12T18:52:57.9681545Z sdmc.cpp
+2026-09-12T18:52:58.0851234Z config.cpp
+2026-09-12T18:52:58.4783173Z pm.cpp
+2026-09-12T18:52:58.6412134Z audout.c
+2026-09-12T18:52:58.8386049Z aud_wrapper.c
+2026-09-12T18:52:58.9244104Z minGlue.c
+2026-09-12T18:52:59.0222569Z minIni.c
+2026-09-12T18:52:59.1341405Z SDL_audioEX.c
+2026-09-12T18:52:59.3581133Z linking sys-tune.elf
+2026-09-12T18:53:00.5267425Z In function 'PlayTrack',
+2026-09-12T18:53:00.5268108Z     inlined from 'TuneThreadFunc' at /src/sys-tune/source/impl/music_player.cpp:1137:40:
+2026-09-12T18:53:00.5269226Z /src/sys-tune/source/impl/music_player.cpp:936:37: note: parameter passing for argument of type 'struct pair' when C++17 is enabled changed to match C++14 in GCC 10.1
+2026-09-12T18:53:00.5270282Z   936 |             album_video_gain.Advance(output_frames);
+2026-09-12T18:53:00.5270819Z       |                                     ^
+2026-09-12T18:53:02.3312406Z built ... sys-tune.nso
+2026-09-12T18:53:02.3317344Z Failed to get system_resource_size (field not present).
+2026-09-12T18:53:02.3317826Z Failed to get version (field not present).
+2026-09-12T18:53:02.3318306Z Failed to get process_category (field not present).
+2026-09-12T18:53:02.3318676Z Failed to get optimize_memory_allocation (field not present).
+2026-09-12T18:53:02.3319028Z Failed to get disable_device_address_space_merge (field not present).
+2026-09-12T18:53:02.3319405Z Failed to get enable_alias_region_extra_size (field not present).
+2026-09-12T18:53:02.3319861Z Failed to get prevent_code_reads (field not present).
+2026-09-12T18:53:02.3320175Z Failed to get signature_key_generation (field not present).
+2026-09-12T18:53:02.3320485Z Failed to get program_id_range_min (field not present).
+2026-09-12T18:53:02.3320776Z Failed to get program_id_range_max (field not present).
+2026-09-12T18:53:02.3321040Z Failed to get program_id (field not present).
+2026-09-12T18:53:02.3324628Z built ... sys-tune.npdm
+2026-09-12T18:53:02.3377931Z built ... sys-tune.nsp
+2026-09-12T18:53:02.3381060Z make[1]: Leaving directory '/src/sys-tune'
+2026-09-12T18:53:02.3383559Z mkdir -p dist/switch/.overlays
+2026-09-12T18:53:02.3392141Z mkdir -p dist/atmosphere/contents/4200000000000000/flags
+2026-09-12T18:53:02.3401065Z touch dist/atmosphere/contents/4200000000000000/flags/boot2.flag
+2026-09-12T18:53:02.3407837Z cp sys-tune/sys-tune.nsp dist/atmosphere/contents/4200000000000000/exefs.nsp
+2026-09-12T18:53:02.3417766Z cp overlay/sys-tune-overlay.ovl dist/switch/.overlays/
+2026-09-12T18:53:02.3429126Z cp sys-tune/toolbox.json dist/atmosphere/contents/4200000000000000/
+2026-09-12T18:53:02.3438795Z cd dist; zip -r sys-tune-2.4.0-exp.qs11-manual.98f0389-98f0389.zip ./**/; cd ../;
+2026-09-12T18:53:02.3452055Z   adding: atmosphere/ (stored 0%)
+2026-09-12T18:53:02.3474353Z   adding: atmosphere/contents/ (stored 0%)
+2026-09-12T18:53:02.3474799Z   adding: atmosphere/contents/4200000000000000/ (stored 0%)
+2026-09-12T18:53:02.3475324Z   adding: atmosphere/contents/4200000000000000/toolbox.json (deflated 27%)
+2026-09-12T18:53:02.3587474Z   adding: atmosphere/contents/4200000000000000/exefs.nsp (deflated 22%)
+2026-09-12T18:53:02.3588032Z   adding: atmosphere/contents/4200000000000000/flags/ (stored 0%)
+2026-09-12T18:53:02.3589433Z   adding: atmosphere/contents/4200000000000000/flags/boot2.flag (stored 0%)
+2026-09-12T18:53:02.3589768Z   adding: switch/ (stored 0%)
+2026-09-12T18:53:02.3590085Z   adding: switch/.overlays/ (stored 0%)
+2026-09-12T18:53:02.3839338Z   adding: switch/.overlays/sys-tune-overlay.ovl (deflated 54%)
+2026-09-12T18:53:02.3841929Z hactool -t nso sys-tune/sys-tune.nso
+2026-09-12T18:53:02.3852902Z [WARN] prod.keys does not exist.
+2026-09-12T18:53:02.3853207Z NSO0:
+2026-09-12T18:53:02.3853643Z     Build Id:                       4A48B6F20D20DF8B9FF030C3287149BE55B0D61D000000000000000000000000
+2026-09-12T18:53:02.3854045Z     Sections:
+2026-09-12T18:53:02.3854238Z         .text:                      00000000-00049000
+2026-09-12T18:53:02.3854485Z         .rodata:                    00049000-00057000
+2026-09-12T18:53:02.3854727Z         .rwdata:                    00057000-0006c000
+2026-09-12T18:53:02.3855195Z         .bss:                       0006c000-000df000
+2026-09-12T18:53:02.3855434Z Done!
+2026-09-12T18:53:02.6613065Z ##[group]Run python3 .github/scripts/package-release.py
+2026-09-12T18:53:02.6613421Z [36;1mpython3 .github/scripts/package-release.py[0m
+2026-09-12T18:53:02.6646627Z shell: /usr/bin/bash -e {0}
+2026-09-12T18:53:02.6646836Z env:
+2026-09-12T18:53:02.6647028Z   BUILD_VERSION: 2.4.0-exp.qs11-manual.98f0389
+2026-09-12T18:53:02.6647279Z   BUILD_COMMIT: 98f0389
+2026-09-12T18:53:02.6647465Z ##[endgroup]
+2026-09-12T18:53:02.7011747Z a990dfc86fdb89bb0052ac1a2c0050de0836e5ddc320459e940f0ddfac71b140  dist/sys-tune-ost-2.4.0-exp.qs11-manual.98f0389.zip
+2026-09-12T18:53:02.7098855Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-09-12T18:53:02.7099182Z with:
+2026-09-12T18:53:02.7099412Z   path: dist/sys-tune-ost-2.4.0-exp.qs11-manual.98f0389.zip
+2026-09-12T18:53:02.7099671Z   archive: false
+2026-09-12T18:53:02.7099842Z   if-no-files-found: error
+2026-09-12T18:53:02.7100043Z   name: artifact
+2026-09-12T18:53:02.7100205Z   compression-level: 6
+2026-09-12T18:53:02.7100379Z   overwrite: false
+2026-09-12T18:53:02.7100561Z   include-hidden-files: false
+2026-09-12T18:53:02.7100755Z ##[endgroup]
+2026-09-12T18:53:02.8240915Z With the provided path, there will be 1 file uploaded
+2026-09-12T18:53:02.8245127Z Artifact name is valid!
+2026-09-12T18:53:02.8245582Z Root directory input is valid!
+2026-09-12T18:53:03.0613743Z Uploading artifact: sys-tune-ost-2.4.0-exp.qs11-manual.98f0389.zip
+2026-09-12T18:53:03.0651830Z Beginning upload of artifact content to blob storage
+2026-09-12T18:53:03.2453977Z Uploaded bytes 438164
+2026-09-12T18:53:03.2717653Z Finished uploading artifact content to blob storage!
+2026-09-12T18:53:03.2718397Z SHA256 digest of uploaded artifact is a990dfc86fdb89bb0052ac1a2c0050de0836e5ddc320459e940f0ddfac71b140
+2026-09-12T18:53:03.2719020Z Finalizing artifact upload
+2026-09-12T18:53:03.5062693Z Artifact sys-tune-ost-2.4.0-exp.qs11-manual.98f0389.zip successfully finalized. Artifact ID 10303628385
+2026-09-12T18:53:03.5063619Z Artifact artifact has been successfully uploaded! Final size is 438164 bytes. Artifact ID is 10303628385
+2026-09-12T18:53:03.5066171Z Artifact download URL: https://github.com/anastaci1a/sys-tune-ost/actions/runs/34712445272/artifacts/10303628385
+2026-09-12T18:53:03.5254420Z Post job cleanup.
+2026-09-12T18:53:03.5977303Z [command]/usr/bin/git version
+2026-09-12T18:53:03.6014063Z git version 2.55.0
+2026-09-12T18:53:03.6048691Z Temporarily overriding HOME='/home/runner/work/_temp/ba85f187-cb60-46b8-800a-ff67ec67c1b7' before making global git config changes
+2026-09-12T18:53:03.6049657Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-12T18:53:03.6053752Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sys-tune-ost/sys-tune-ost
+2026-09-12T18:53:03.6080870Z Removing SSH command configuration
+2026-09-12T18:53:03.6086297Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-12T18:53:03.6116165Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-12T18:53:03.6311363Z Entering 'overlay/lib'
+2026-09-12T18:53:03.6358907Z Removing HTTP extra header
+2026-09-12T18:53:03.6364203Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-12T18:53:03.6394283Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-12T18:53:03.6598944Z Entering 'overlay/lib'
+2026-09-12T18:53:03.6654900Z Removing includeIf entries pointing to credentials config files
+2026-09-12T18:53:03.6663005Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-12T18:53:03.6694938Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-12T18:53:03.6900415Z Entering 'overlay/lib'
+2026-09-12T18:53:03.6916105Z file:/home/runner/work/sys-tune-ost/sys-tune-ost/.git/modules/overlay/lib/config	remote.origin.url
+2026-09-12T18:53:03.6960394Z [command]/usr/bin/git config --file /home/runner/work/sys-tune-ost/sys-tune-ost/.git/modules/overlay/lib/config --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-12T18:53:03.7104785Z Cleaning up orphan processes

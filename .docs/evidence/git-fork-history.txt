@@ -1,0 +1,406 @@
+commit ea29c194a95d7a7cd303946dbc4cc19686b414cd
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-04T13:58:06-04:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-04T13:58:06-04:00
+
+    Add per-applet background music mode
+
+ Makefile                              |   4 +-
+ README.md                             |  73 ++++++++-
+ common/applet_bgm.hpp                 |  60 ++++++++
+ common/config/config.cpp              |  18 +++
+ common/config/config.hpp              |   7 +
+ common/pm/pm.cpp                      |  31 ++++
+ common/pm/pm.hpp                      |   5 +
+ ipc/ipc_cmd.h                         |   2 +
+ ipc/tune.c                            |   4 +
+ ipc/tune.h                            |   5 +
+ overlay/source/gui_applet_bgm.cpp     |  98 ++++++++++++
+ overlay/source/gui_applet_bgm.hpp     |  22 +++
+ overlay/source/gui_browser.cpp        |  46 ++++--
+ overlay/source/gui_browser.hpp        |   3 +
+ overlay/source/gui_main.cpp           |  12 ++
+ sys-tune/source/impl/music_player.cpp | 271 ++++++++++++++++++++++++++++++----
+ sys-tune/source/impl/music_player.hpp |   3 +
+ sys-tune/source/main.cpp              |   2 +
+ sys-tune/source/tune_service.cpp      |   4 +
+ 19 files changed, 621 insertions(+), 49 deletions(-)
+
+commit bfdd084be26af96e2ab943d0b3574523fe347824
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-04T21:32:05-03:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-04T21:32:05-03:00
+
+    Turn sys-tune into a system UI OST manager
+
+ Makefile                              |    4 +-
+ README.md                             |  127 ++-
+ common/applet_bgm.hpp                 |   12 +-
+ common/config/config.cpp              |  184 ++++
+ common/config/config.hpp              |   27 +-
+ common/pm/pm.hpp                      |    2 +-
+ ipc/ipc_cmd.h                         |    3 +
+ ipc/tune.c                            |   12 +
+ ipc/tune.h                            |    5 +-
+ overlay/source/elm_overlayframe.hpp   |    2 +-
+ overlay/source/elm_status_bar.cpp     |  184 ++--
+ overlay/source/elm_status_bar.hpp     |   28 +-
+ overlay/source/gui_applet_bgm.cpp     |   74 +-
+ overlay/source/gui_applet_bgm.hpp     |    5 +-
+ overlay/source/gui_browser.cpp        |   82 +-
+ overlay/source/gui_browser.hpp        |    8 +-
+ overlay/source/gui_main.cpp           |  145 +--
+ overlay/source/gui_misc.cpp           |   96 ++
+ overlay/source/gui_misc.hpp           |    8 +
+ overlay/source/gui_ost_playlist.cpp   |  177 ++++
+ overlay/source/gui_ost_playlist.hpp   |   25 +
+ overlay/source/gui_playlist.cpp       |  178 ----
+ overlay/source/gui_playlist.hpp       |   14 -
+ sys-tune/source/impl/music_player.cpp | 1642 ++++++++++++++++++---------------
+ sys-tune/source/impl/music_player.hpp |    3 +
+ sys-tune/source/tune_service.cpp      |   10 +
+ 26 files changed, 1759 insertions(+), 1298 deletions(-)
+
+commit e656b39e12bf86fe4996b46a58486fa5b7393b50
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-04T22:06:46-03:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-04T22:06:46-03:00
+
+    Replay startup sound after waking from sleep
+
+ Makefile                              |   4 +-
+ README.md                             |  17 +++-
+ common/config/config.cpp              |   9 +++
+ common/config/config.hpp              |   6 +-
+ overlay/source/gui_ost_playlist.cpp   |  13 +++-
+ sys-tune/source/impl/music_player.cpp | 141 +++++++++++++++++++++++++++++++---
+ 6 files changed, 170 insertions(+), 20 deletions(-)
+
+commit 8ce0d0d81448a17b22fdc1b4324cf3e1cbf1cc0d
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-04T22:39:05-03:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-04T22:39:05-03:00
+
+    Reduce UI soundtrack transition latency
+
+ Makefile                              |   2 +-
+ README.md                             |   8 +++
+ common/config/config.cpp              |  85 ++++++++++++++++++++++
+ common/config/config.hpp              |   9 +++
+ overlay/source/elm_status_bar.cpp     |   6 +-
+ sys-tune/source/impl/music_player.cpp | 132 ++++++++++++++++++++++++++++------
+ sys-tune/source/impl/source.cpp       |  42 ++++++++---
+ sys-tune/source/impl/source.hpp       |   3 +-
+ 8 files changed, 252 insertions(+), 35 deletions(-)
+
+commit 191c171b94c789cb0d07a902286a6b092cbd7472
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-04T20:08:51-07:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-04T20:08:51-07:00
+
+    Add Home resume timing diagnostics
+
+ Makefile                              |   4 +-
+ README.md                             |   7 +-
+ ipc/ipc_cmd.h                         |   1 +
+ ipc/tune.c                            |   5 ++
+ ipc/tune.h                            |  17 +++++
+ overlay/source/gui_misc.cpp           |  63 ++++++++++++++++++
+ sys-tune/source/impl/music_player.cpp | 119 ++++++++++++++++++++++++++++++++--
+ sys-tune/source/impl/music_player.hpp |   1 +
+ sys-tune/source/tune_service.cpp      |   4 ++
+ 9 files changed, 212 insertions(+), 9 deletions(-)
+
+commit c0e5dfcf5a9c4ed97f7264baebb1b665abbc046d
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-04T21:01:48-07:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-04T21:01:48-07:00
+
+    Prepare stable UI OST release
+
+ Makefile                              |   2 +-
+ README.md                             |   9 +--
+ ipc/ipc_cmd.h                         |   1 -
+ ipc/tune.c                            |   5 --
+ ipc/tune.h                            |  17 -----
+ overlay/source/elm_volume.hpp         |   6 +-
+ overlay/source/gui_misc.cpp           | 127 +++++++++-------------------------
+ sys-tune/source/impl/music_player.cpp | 119 ++-----------------------------
+ sys-tune/source/impl/music_player.hpp |   1 -
+ sys-tune/source/tune_service.cpp      |   4 --
+ 10 files changed, 48 insertions(+), 243 deletions(-)
+
+commit a7da4a4816a01dcd05d1f1a952960afce2d662f0
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-04T21:28:59-07:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-04T21:28:59-07:00
+
+    Polish soundtrack editor workflow
+
+ Makefile                            |   2 +-
+ README.md                           |  19 ++-
+ overlay/source/elm_overlayframe.hpp |  29 +++-
+ overlay/source/elm_status_bar.cpp   |   2 +-
+ overlay/source/elm_text_block.hpp   |  45 +++++++
+ overlay/source/gui_applet_bgm.cpp   |  53 +++++---
+ overlay/source/gui_applet_bgm.hpp   |  12 +-
+ overlay/source/gui_browser.cpp      |  28 ++--
+ overlay/source/gui_main.cpp         |   4 +-
+ overlay/source/gui_misc.cpp         |  12 +-
+ overlay/source/gui_ost_playlist.cpp | 261 ++++++++++++++++++++++++++----------
+ overlay/source/gui_ost_playlist.hpp |  21 ++-
+ overlay/source/main.cpp             |   6 +
+ overlay/source/ost_ui_state.cpp     |  80 +++++++++++
+ overlay/source/ost_ui_state.hpp     |  19 +++
+ 15 files changed, 459 insertions(+), 134 deletions(-)
+
+commit ee5fc7bd26e00e0df2e6757374296d1d44adb8cf
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-04T22:38:47-07:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-04T22:38:47-07:00
+
+    Add experimental qlaunch scene observer
+
+ Makefile                                         |   4 +-
+ README.md                                        |  33 +-
+ ipc/ipc_cmd.h                                    |   2 +
+ ipc/tune.c                                       |   8 +
+ ipc/tune.h                                       |  47 ++
+ overlay/source/gui_misc.cpp                      |  15 +
+ overlay/source/gui_qlaunch_scene_diagnostics.cpp | 191 +++++
+ overlay/source/gui_qlaunch_scene_diagnostics.hpp |  30 +
+ sys-tune/source/main.cpp                         |   9 +
+ sys-tune/source/qlaunch_scene_observer.cpp       | 877 +++++++++++++++++++++++
+ sys-tune/source/qlaunch_scene_observer.hpp       |  15 +
+ sys-tune/source/tune_service.cpp                 |  14 +
+ sys-tune/sys-tune.json                           |   5 +-
+ 13 files changed, 1241 insertions(+), 9 deletions(-)
+
+commit afb43886b0754d55d58827e6b3036129b7fcc6a6
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-05T10:17:45-04:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-05T10:20:04-04:00
+
+    Split qlaunch scenes into independent soundtracks
+
+ Makefile                                   |  4 +--
+ README.md                                  | 49 +++++++++++++++++-------------
+ common/applet_bgm.hpp                      | 20 +++++++++---
+ overlay/source/elm_status_bar.cpp          |  8 ++++-
+ overlay/source/gui_applet_bgm.cpp          |  4 ++-
+ overlay/source/gui_ost_playlist.cpp        |  3 +-
+ sys-tune/source/impl/music_player.cpp      | 48 ++++++++++++++++++++++++++---
+ sys-tune/source/qlaunch_scene_observer.cpp | 16 ++++++++++
+ sys-tune/source/qlaunch_scene_observer.hpp |  1 +
+ 9 files changed, 117 insertions(+), 36 deletions(-)
+
+commit 0408b3a227d718802bd511d8c04660e5fe2d1044
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-05T09:43:17-07:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-05T09:43:17-07:00
+
+    Fix power transitions and playlist repeat
+
+ Makefile                                   |   4 +-
+ README.md                                  |  50 ++++---
+ common/applet_bgm.hpp                      |  16 +--
+ common/config/config.cpp                   |  84 +++++++++---
+ common/config/config.hpp                   |   4 +
+ overlay/source/gui_misc.cpp                |  17 ++-
+ sys-tune/source/impl/music_player.cpp      | 205 ++++++++++++++++++++++++-----
+ sys-tune/source/qlaunch_scene_observer.cpp |  23 ++--
+ sys-tune/source/qlaunch_scene_observer.hpp |  14 +-
+ 9 files changed, 316 insertions(+), 101 deletions(-)
+
+commit 2320cea0490b69e81f0bf9359e7b336f81026755
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-05T15:58:20-06:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-05T15:58:20-06:00
+
+    Fix lock routing and add per-state volume
+
+ Makefile                              |   4 +-
+ README.md                             |  28 +++--
+ common/applet_bgm.hpp                 |   1 +
+ common/config/config.cpp              |  21 +++-
+ common/config/config.hpp              |   2 +
+ overlay/source/gui_main.cpp           |  14 ++-
+ overlay/source/gui_misc.cpp           |  12 ---
+ overlay/source/gui_ost_playlist.cpp   |  10 +-
+ overlay/source/ost_volume_slider.hpp  |  40 +++++++
+ sys-tune/source/impl/music_player.cpp | 194 ++++++++++++++++++++++++++--------
+ 10 files changed, 254 insertions(+), 72 deletions(-)
+
+commit f4daa027f4701f2702e3954b13642c427f719a0c
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-05T16:40:16-06:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-05T16:41:12-06:00
+
+    Add Album video volume and wake playlist
+
+ Makefile                                       |   4 +-
+ common/applet_bgm.hpp                          |   8 +-
+ common/config/config.cpp                       |  23 +
+ common/config/config.hpp                       |  12 +-
+ ipc/ipc_cmd.h                                  |   1 +
+ ipc/tune.c                                     |   4 +
+ ipc/tune.h                                     |  32 +
+ overlay/source/elm_status_bar.cpp              |   7 +-
+ overlay/source/gui_album_video_diagnostics.cpp | 145 +++++
+ overlay/source/gui_album_video_diagnostics.hpp |  30 +
+ overlay/source/gui_misc.cpp                    |  16 +-
+ overlay/source/gui_ost_playlist.cpp            |  82 ++-
+ overlay/source/gui_ost_playlist.hpp            |   5 +
+ sys-tune/source/album_video_observer.cpp       | 804 +++++++++++++++++++++++++
+ sys-tune/source/album_video_observer.hpp       |  26 +
+ sys-tune/source/impl/music_player.cpp          | 133 +++-
+ sys-tune/source/main.cpp                       |   3 +
+ sys-tune/source/tune_service.cpp               |   9 +
+ sys-tune/sys-tune.json                         |   3 +-
+ 19 files changed, 1313 insertions(+), 34 deletions(-)
+
+commit fd716e6a7b8339a183b60fafb9462085e297c318
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-05T17:23:34-06:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-05T17:23:34-06:00
+
+    Replace Home delay with coordinated power detection
+
+ Makefile                                       |   4 +-
+ ipc/ipc_cmd.h                                  |   1 +
+ ipc/tune.c                                     |   4 +
+ ipc/tune.h                                     |  37 ++++
+ overlay/source/gui_misc.cpp                    |  14 +-
+ overlay/source/gui_power_state_diagnostics.cpp | 162 +++++++++++++++
+ overlay/source/gui_power_state_diagnostics.hpp |  26 +++
+ sys-tune/source/impl/music_player.cpp          | 186 ++++++++++++-----
+ sys-tune/source/impl/music_player.hpp          |   9 +
+ sys-tune/source/power_state_observer.cpp       | 269 +++++++++++++++++++++++++
+ sys-tune/source/power_state_observer.hpp       |  30 +++
+ sys-tune/source/tune_service.cpp               |   9 +
+ 12 files changed, 702 insertions(+), 49 deletions(-)
+
+commit 7960f420a783de859b4e1bf2c464bb6fe20a1dfe
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-05T18:56:26-06:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-05T18:56:26-06:00
+
+    Add Quick Settings and launch-aware UI audio
+
+ Makefile                                         |   4 +-
+ README.md                                        |  74 ++--
+ common/applet_bgm.hpp                            |   1 +
+ common/config/config.cpp                         |  35 +-
+ common/config/config.hpp                         |   4 +
+ ipc/ipc_cmd.h                                    |   2 +
+ ipc/tune.c                                       |   8 +
+ ipc/tune.h                                       |  49 +++
+ overlay/source/elm_overlayframe.hpp              |  13 +-
+ overlay/source/elm_status_bar.cpp                |   3 +
+ overlay/source/gui_album_video_diagnostics.cpp   |   4 +-
+ overlay/source/gui_applet_bgm.cpp                |   9 +-
+ overlay/source/gui_misc.cpp                      |  37 +-
+ overlay/source/gui_ost_playlist.cpp              |  15 +-
+ overlay/source/gui_power_state_diagnostics.cpp   |   4 +-
+ overlay/source/gui_qlaunch_scene_diagnostics.cpp |   4 +-
+ overlay/source/gui_ui_activity_diagnostics.cpp   | 238 ++++++++++++
+ overlay/source/gui_ui_activity_diagnostics.hpp   |  38 ++
+ overlay/source/ost_volume_slider.hpp             |  14 +-
+ sys-tune/source/impl/music_player.cpp            | 292 +++++++++------
+ sys-tune/source/tune_service.cpp                 |  13 +
+ sys-tune/source/ui_activity_observer.cpp         | 441 +++++++++++++++++++++++
+ sys-tune/source/ui_activity_observer.hpp         |  30 ++
+ 23 files changed, 1146 insertions(+), 186 deletions(-)
+
+commit 787197a2cf522c5836e986492a701208c35c63db
+Author:     Codex <codex@openai.com>
+AuthorDate: 2026-08-06T19:52:50+09:00
+Commit:     Codex <codex@openai.com>
+CommitDate: 2026-08-06T19:52:50+09:00
+
+    Fix UI overlay and loading state timing
+
+ Makefile                                 |  2 +-
+ common/config/config.cpp                 | 12 ++++++++
+ common/config/config.hpp                 |  4 +++
+ overlay/source/gui_misc.cpp              |  8 +++++
+ sys-tune/source/impl/music_player.cpp    | 53 ++++++++++++++++++++++++++++++++
+ sys-tune/source/ui_activity_observer.cpp | 36 +++++++++++++++++++---
+ 6 files changed, 109 insertions(+), 6 deletions(-)
+
+commit 1c695f31652e05a7cdcc11ffedf328b0ef27fde8
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-06T10:04:12-03:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-06T10:04:12-03:00
+
+    Fix UI activity routing and loading timing
+
+ Makefile                                       |   4 +-
+ common/applet_bgm.hpp                          |   9 +
+ common/config/config.cpp                       |  12 +
+ common/config/config.hpp                       |   4 +
+ ipc/tune.h                                     |  27 +-
+ overlay/source/gui_misc.cpp                    |   8 +
+ overlay/source/gui_ui_activity_diagnostics.cpp |  81 +++++-
+ overlay/source/gui_ui_activity_diagnostics.hpp |  15 +
+ sys-tune/source/impl/music_player.cpp          | 143 ++++++++-
+ sys-tune/source/main.cpp                       |   5 +-
+ sys-tune/source/ui_activity_observer.cpp       | 386 ++++++++++++++++++++++++-
+ sys-tune/source/ui_activity_observer.hpp       |  15 +-
+ 12 files changed, 682 insertions(+), 27 deletions(-)
+
+commit 9637066fe4879a0bbb6d647a26908b3c866eb176
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-06T20:47:38+05:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-06T20:47:38+05:00
+
+    Make UI timing controls configurable
+
+ Makefile                                       |   4 +-
+ common/applet_bgm.hpp                          |   3 +-
+ common/config/config.cpp                       |  35 +++++++++
+ common/config/config.hpp                       |  13 ++++
+ overlay/source/duration_slider.hpp             |  82 ++++++++++++++++++++
+ overlay/source/gui_loading_settings.cpp        |  30 +++++++
+ overlay/source/gui_loading_settings.hpp        |   8 ++
+ overlay/source/gui_misc.cpp                    | 103 ++++---------------------
+ overlay/source/gui_ost_playlist.cpp            |  21 +++++
+ overlay/source/gui_quick_settings_settings.cpp |  47 +++++++++++
+ overlay/source/gui_quick_settings_settings.hpp |   8 ++
+ overlay/source/gui_ui_activity_diagnostics.cpp |  10 +--
+ overlay/source/gui_ui_activity_diagnostics.hpp |   1 -
+ sys-tune/source/impl/music_player.cpp          |  97 +++++++++++++++++++----
+ sys-tune/source/ui_activity_observer.cpp       |  84 ++++++++------------
+ sys-tune/source/ui_activity_observer.hpp       |   4 +-
+ 16 files changed, 382 insertions(+), 168 deletions(-)
+
+commit 79f2e9429be41e27d1ceb75d13e07776051abbaf
+Author:     OpenAI Codex <codex@openai.com>
+AuthorDate: 2026-08-06T18:50:45-03:00
+Commit:     OpenAI Codex <codex@openai.com>
+CommitDate: 2026-08-06T18:50:45-03:00
+
+    Fix applet transitions and Home resume policy
+
+ Makefile                                 |  4 +--
+ overlay/source/gui_ost_playlist.cpp      | 42 +++++++++++++++++++++-----------
+ overlay/source/gui_ost_playlist.hpp      |  2 ++
+ sys-tune/source/impl/music_player.cpp    | 18 +++++++++++---
+ sys-tune/source/ui_activity_observer.cpp | 17 +++----------
+ 5 files changed, 50 insertions(+), 33 deletions(-)

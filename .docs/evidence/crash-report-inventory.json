@@ -1,0 +1,57 @@
+[
+  {
+    "original_name": "report_000000000b503613.bin",
+    "included_path": "context/evidence/crash-reports/report_000000000b503613.bin",
+    "sha256": "66b1b573f8c9634ebc913430f606e7a6ebdb0f678c6273a5cb2298587c75af93",
+    "bytes": 1104,
+    "magic": "AFE2",
+    "error_desc": "0xffe",
+    "program_id": "010000000000BD00",
+    "first_register": "0x0",
+    "automatic_backup_marker_present": false
+  },
+  {
+    "original_name": "report_00000002a59a1084.bin",
+    "included_path": "context/evidence/crash-reports/report_00000002a59a1084.bin",
+    "sha256": "2c33c85b7a780a795353f9869ff12f91f007ed3fcfa5054494744f7ea82478d7",
+    "bytes": 1104,
+    "magic": "AFE2",
+    "error_desc": "0xffe",
+    "program_id": "010041544D530000",
+    "first_register": "0xe401",
+    "automatic_backup_marker_present": false
+  },
+  {
+    "original_name": "report_000000398b51c450(1).bin",
+    "included_path": "context/evidence/crash-reports/report_000000398b51c450.bin",
+    "sha256": "1639db0d9d273d0a88067fa783cdb5f7596ab9231e71429faace7299cd07d9b9",
+    "bytes": 1104,
+    "magic": "AFE2",
+    "error_desc": "0xffe",
+    "program_id": "010041544D530000",
+    "first_register": "0x202",
+    "automatic_backup_marker_present": false
+  },
+  {
+    "original_name": "report_000000398b51c450.bin",
+    "included_path": "context/evidence/crash-reports/report_000000398b51c450.bin",
+    "sha256": "1639db0d9d273d0a88067fa783cdb5f7596ab9231e71429faace7299cd07d9b9",
+    "bytes": 1104,
+    "magic": "AFE2",
+    "error_desc": "0xffe",
+    "program_id": "010041544D530000",
+    "first_register": "0x202",
+    "automatic_backup_marker_present": false
+  },
+  {
+    "original_name": "report_000000000b503613.bin",
+    "included_path": "context/evidence/crash-reports/report_000000000b503613.bin",
+    "sha256": "66b1b573f8c9634ebc913430f606e7a6ebdb0f678c6273a5cb2298587c75af93",
+    "bytes": 1104,
+    "magic": "AFE2",
+    "error_desc": "0xffe",
+    "program_id": "010000000000BD00",
+    "first_register": "0x0",
+    "automatic_backup_marker_present": false
+  }
+]

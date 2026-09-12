@@ -1,0 +1,700 @@
+{
+  "scope": "All non-Git files; Git objects/refs verified separately. Manifest excludes itself.",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 2475,
+      "sha256": "a554269c67e83cc1e0dbffb14132ba24af1fbaf9777315f9bf70d64c89c432db"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2505,
+      "sha256": "cb8b54d31a9d42573d26e3a38c6056cf5e97980d5f51b7a040bbfee29f586707"
+    },
+    {
+      "path": "context/ARTIFACT_MANIFEST.json",
+      "bytes": 23253,
+      "sha256": "11870fe8a78f43105e47b0b6751ba65119eea477162ae475a90b546ffd799bf6"
+    },
+    {
+      "path": "context/BUILD_AND_RELEASE.md",
+      "bytes": 7979,
+      "sha256": "7112245209dadd8b5a5903041f7743e24febe158ef1c5b013fe3dbc4b8cdb331"
+    },
+    {
+      "path": "context/CODEX_HANDOFF.md",
+      "bytes": 16261,
+      "sha256": "e1dcee25da152e5c50c28aa64764264d06f0de6ccf70d336be2f4c939e0f3519"
+    },
+    {
+      "path": "context/CRASH_NOTES.md",
+      "bytes": 4162,
+      "sha256": "f4c9336d9f3d2343fb03ac65fe5f1cb0d1360997444f0c365829ee862346270d"
+    },
+    {
+      "path": "context/DEVELOPMENT_HISTORY.md",
+      "bytes": 19654,
+      "sha256": "358e4d9fa6ca4071ddf3dffcab1bce75fdb8c7956bab42b414ab8c9b5415d65a"
+    },
+    {
+      "path": "context/RELEASES.md",
+      "bytes": 5032,
+      "sha256": "29b7a0da211fc3f59d00f0f5646cc7229ecf813464faa3992388f8431aeb8890"
+    },
+    {
+      "path": "context/TODO.md",
+      "bytes": 12995,
+      "sha256": "8120c68470f3540182eaafb7466ce87a7825e1aaa0ff889df429d093d2c111ab"
+    },
+    {
+      "path": "context/evidence/crash-report-inventory.json",
+      "bytes": 2038,
+      "sha256": "c208baec0cd4895d0a1c6e2502a1d17f55e3cadc4d6a5d3afff99eda732b5e32"
+    },
+    {
+      "path": "context/evidence/crash-reports/report_000000000b503613.bin",
+      "bytes": 1104,
+      "sha256": "66b1b573f8c9634ebc913430f606e7a6ebdb0f678c6273a5cb2298587c75af93"
+    },
+    {
+      "path": "context/evidence/crash-reports/report_00000002a59a1084.bin",
+      "bytes": 1104,
+      "sha256": "2c33c85b7a780a795353f9869ff12f91f007ed3fcfa5054494744f7ea82478d7"
+    },
+    {
+      "path": "context/evidence/crash-reports/report_000000398b51c450.bin",
+      "bytes": 1104,
+      "sha256": "1639db0d9d273d0a88067fa783cdb5f7596ab9231e71429faace7299cd07d9b9"
+    },
+    {
+      "path": "context/evidence/git-fork-history.txt",
+      "bytes": 18464,
+      "sha256": "71ba08fa23202d7ffad1aa5429f098eb778b649a029ae6134ae8706bef6b078c"
+    },
+    {
+      "path": "context/evidence/git-history.txt",
+      "bytes": 373886,
+      "sha256": "8e49f9bfb1ef699cd02b2e90434b07d8011a882177e60697e4924378324dca99"
+    },
+    {
+      "path": "context/evidence/git-refs.txt",
+      "bytes": 1482,
+      "sha256": "928644e070ede9f728878ffeae4974247d8837ec9d9910a88cf75b6098b97f1d"
+    },
+    {
+      "path": "context/evidence/qs10-to-qs11.patch",
+      "bytes": 8926,
+      "sha256": "dd06dc8faefe5d2652587d0ca05e675bc5dc86a1c054f138d46642f9a9ea4dde"
+    },
+    {
+      "path": "context/evidence/qs7-to-qs8.patch",
+      "bytes": 10159,
+      "sha256": "b83899c54a39d9a143867fcb08c0c9776dfe07ad23442a507b2da0f2d2a15db6"
+    },
+    {
+      "path": "context/evidence/qs7-to-qs9.patch",
+      "bytes": 46230,
+      "sha256": "30199444e2ee0aff216ff71d3c907750c2e4be4659e61221d3eb170ab4dbcd1c"
+    },
+    {
+      "path": "context/evidence/qs9-to-qs10.patch",
+      "bytes": 38857,
+      "sha256": "6ccda97aad0aa7a8758bcc54e4900efb566b7012bb3da876cac033860cc0889e"
+    },
+    {
+      "path": "context/verify_handoff.py",
+      "bytes": 6441,
+      "sha256": "9997d55b411196c449ae2301065a652d0e31c1d148468133c2c17e153b07b141"
+    },
+    {
+      "path": "project/.github/FUNDING.yml",
+      "bytes": 41,
+      "sha256": "5a7dda8e026237dbf17a369bf4af2cbb461d39e10852eadb91f5b19dbb6abed6"
+    },
+    {
+      "path": "project/.github/workflows/build.yml",
+      "bytes": 921,
+      "sha256": "403d93ec1d047a1e718acd351dd861f6e480dd6cd07d74c1f19cc4c3a2f24b9f"
+    },
+    {
+      "path": "project/.gitignore",
+      "bytes": 83,
+      "sha256": "e5d1c202369cf3f9bd8e6f21c89a57c1af470a637d7d19c95036f6ca72c899ea"
+    },
+    {
+      "path": "project/.gitmodules",
+      "bytes": 89,
+      "sha256": "7ceb06bea023c24b076656354ddc63b4d6a61093fe78eb9c7b3b4e3bcd980a36"
+    },
+    {
+      "path": "project/.vscode/c_cpp_properties.json",
+      "bytes": 756,
+      "sha256": "177cb42516daed89c43d33ea67fe6a21f8996fd4eba16d9518a4ab04d60ae900"
+    },
+    {
+      "path": "project/Makefile",
+      "bytes": 939,
+      "sha256": "331847175b6b55bb76ee19dd843bbdbbadfdc462e908ea8f40679045b6c07902"
+    },
+    {
+      "path": "project/README.md",
+      "bytes": 11206,
+      "sha256": "21a105ac7d772915d12cb1951fd58b99e01ec17ed6c802203a0c8a394446f54e"
+    },
+    {
+      "path": "project/common/applet_bgm.hpp",
+      "bytes": 3187,
+      "sha256": "0d223070a46ed5abbc860277913a5a87205227ae0a40222d0ae6d1f4fa3f86e3"
+    },
+    {
+      "path": "project/common/config/config.cpp",
+      "bytes": 16206,
+      "sha256": "f6d6b87f6e05355909ab88563dd7b8d56b411ba98c4e9cf106065d79aee6eeaa"
+    },
+    {
+      "path": "project/common/config/config.hpp",
+      "bytes": 4118,
+      "sha256": "f09eea648a210cd1aa3de3f5b5157883adad764846aa888d9a40cbda0fd624b3"
+    },
+    {
+      "path": "project/common/minIni/minGlue.c",
+      "bytes": 3508,
+      "sha256": "6f248f327f8eec5102336e299214c4c3e8efabdf4c9ea65ec804406d2bc8062f"
+    },
+    {
+      "path": "project/common/minIni/minGlue.h",
+      "bytes": 996,
+      "sha256": "18a2d19e00290630b65043bc231b823bb060f6c9e4215c3e9a27afcf10d9816e"
+    },
+    {
+      "path": "project/common/minIni/minIni.c",
+      "bytes": 33346,
+      "sha256": "2879b7d7b35bfff9c37691fc5674b96d73eaf244b9a30415ac319552df0b4d94"
+    },
+    {
+      "path": "project/common/minIni/minIni.h",
+      "bytes": 6525,
+      "sha256": "b5e34e8fcb0c3c1e3deeb7ad1662b25e3bd78cbf2428d5d81b73fe2859fa17f0"
+    },
+    {
+      "path": "project/common/pm/pm.cpp",
+      "bytes": 2165,
+      "sha256": "d9cefd39ae02a086e65d7b60fa6042da61d70fed445149fc4e53d7398d29bb8a"
+    },
+    {
+      "path": "project/common/pm/pm.hpp",
+      "bytes": 490,
+      "sha256": "7ab8b1438f76e3619549d1cd143b9ec8b97a926e458071b2ca68375efdee0a0d"
+    },
+    {
+      "path": "project/common/sdmc/sdmc.cpp",
+      "bytes": 1114,
+      "sha256": "6aa6c4e59d9dc5b9364396ccb2617810da4db8d6b5c902138b9830f6697d9799"
+    },
+    {
+      "path": "project/common/sdmc/sdmc.hpp",
+      "bytes": 389,
+      "sha256": "12356fe52f9276b97466294c9b631a22fd3308fdd30f4f50ea31b5c2a25dd466"
+    },
+    {
+      "path": "project/ipc/ipc_cmd.h",
+      "bytes": 1308,
+      "sha256": "75aa71119991d065d7777bab671f058012b855aa3844b1d026ff326585c55d42"
+    },
+    {
+      "path": "project/ipc/tune.c",
+      "bytes": 5459,
+      "sha256": "8b87fbe0a3b76dd96088876d769ceec6e6fd7523826751284dcd231aff4f9a7b"
+    },
+    {
+      "path": "project/ipc/tune.h",
+      "bytes": 8720,
+      "sha256": "e96e98a2c73fe747190b0052e5254555a1bcc2a55e1e157c30170ec65b3b92a2"
+    },
+    {
+      "path": "project/overlay/Makefile",
+      "bytes": 7929,
+      "sha256": "78cc45ab785ba5857c8912b6ee3bbd1b34cd6ba0e16b8a84a2938ee7572d02d1"
+    },
+    {
+      "path": "project/overlay/lib/.github/FUNDING.yml",
+      "bytes": 182,
+      "sha256": "85b440d99570bc2e1673aeb17d4c6e1b3e35780cd08317d1ca6222b323444000"
+    },
+    {
+      "path": "project/overlay/lib/.github/workflows/build_example.yml",
+      "bytes": 252,
+      "sha256": "3214f75badea4bd5a72d46004b8e10dbdb70c1839e99f3eb35a4671761f35a1d"
+    },
+    {
+      "path": "project/overlay/lib/.gitignore",
+      "bytes": 74,
+      "sha256": "98d68a45f300c9f7f81037f1abac154508fe10f28c50fa4b4e82c3cb54f05906"
+    },
+    {
+      "path": "project/overlay/lib/.vscode/c_cpp_properties.json",
+      "bytes": 1588,
+      "sha256": "3f8fdd65d848c1f9179f93b38fe528684afae3308072a8fd0f36e4c7b71d3528"
+    },
+    {
+      "path": "project/overlay/lib/.vscode/settings.json",
+      "bytes": 1458,
+      "sha256": "1a0ee3df03026748fd944b237e9a9bde1526d4da7f77806e9c2103320aacb67b"
+    },
+    {
+      "path": "project/overlay/lib/LICENSE",
+      "bytes": 18431,
+      "sha256": "189b1af95d661151e054cea10c91b3d754e4de4d3fecfb074c1fb29476f7167b"
+    },
+    {
+      "path": "project/overlay/lib/README.md",
+      "bytes": 1620,
+      "sha256": "b59f3e995f08f123047280a5001a6021bf3dd2d9a84da620c190b6c8db03b16c"
+    },
+    {
+      "path": "project/overlay/lib/example/Makefile",
+      "bytes": 7461,
+      "sha256": "a6b113af232586f8245008b19affa7c9ebeeab4d6d0f3fa4de2b3285488507b2"
+    },
+    {
+      "path": "project/overlay/lib/example/source/main.cpp",
+      "bytes": 4557,
+      "sha256": "c74608cf4c895193239d4609b55470d52df22682efbd20c9fafff68f6bc5575e"
+    },
+    {
+      "path": "project/overlay/lib/include/stb_truetype.h",
+      "bytes": 195651,
+      "sha256": "78ba82c98d513304abc5149c7b92309f5ba6203b8eada77dcbad40d73df05267"
+    },
+    {
+      "path": "project/overlay/lib/include/tesla.hpp",
+      "bytes": 137728,
+      "sha256": "132f0ba423392dd6f8fe0eac7a110a560e05e2bcf3c0e47058e27447c95b8661"
+    },
+    {
+      "path": "project/overlay/source/duration_slider.hpp",
+      "bytes": 2537,
+      "sha256": "f52c9825b6a763cebd3c6def6d0bba8e43ced6ce2eb680b4cc136c29f02d5228"
+    },
+    {
+      "path": "project/overlay/source/elm_overlayframe.hpp",
+      "bytes": 5009,
+      "sha256": "820499d203d840b48480598f814a3abc6050a1c8941afef65ff942adb7d9a4ce"
+    },
+    {
+      "path": "project/overlay/source/elm_status_bar.cpp",
+      "bytes": 12556,
+      "sha256": "b031afe23147a7e432a9d1ae5e536c61981da89b5855f413fdd97af6260f2929"
+    },
+    {
+      "path": "project/overlay/source/elm_status_bar.hpp",
+      "bytes": 2888,
+      "sha256": "0c8a7eec45f2a8d8936ca3289e3b3a4c874caf9bd57a1f31f56b905f5284f7d0"
+    },
+    {
+      "path": "project/overlay/source/elm_text_block.hpp",
+      "bytes": 1209,
+      "sha256": "6366d117cfee7fe85065a9bb9d219aff17cca162eb461cdca931d77b37f71181"
+    },
+    {
+      "path": "project/overlay/source/elm_volume.hpp",
+      "bytes": 1137,
+      "sha256": "db10fe548123d632804bf99e451a78e0d1fb2c4f57234643a3bcada1e5dfc53c"
+    },
+    {
+      "path": "project/overlay/source/gui_album_video_diagnostics.cpp",
+      "bytes": 4784,
+      "sha256": "6d845f5a21813bf4d3a831071923eb9054cde442ae9e7e3ce883394f8c082b70"
+    },
+    {
+      "path": "project/overlay/source/gui_album_video_diagnostics.hpp",
+      "bytes": 740,
+      "sha256": "9059d1c1992f90661bb0535d0f8b2db6e47da03416bb01a6d6a7cfc490d8cd56"
+    },
+    {
+      "path": "project/overlay/source/gui_applet_bgm.cpp",
+      "bytes": 2878,
+      "sha256": "65a9956d56d3a085764bc6b11596c7055d38f65192223babe76a8334c49b56d3"
+    },
+    {
+      "path": "project/overlay/source/gui_applet_bgm.hpp",
+      "bytes": 593,
+      "sha256": "ad6477a550d45002b4829eda4162f2eafeffd57bc2e3ae7918240e6c18d84ee0"
+    },
+    {
+      "path": "project/overlay/source/gui_browser.cpp",
+      "bytes": 9592,
+      "sha256": "aba849b8285bceb7ef8e89b70efba7bc453d315ff7e5e70c6920ee70ad8765ed"
+    },
+    {
+      "path": "project/overlay/source/gui_browser.hpp",
+      "bytes": 632,
+      "sha256": "a8255eb8003dd8d07fec4dd968ba9da79b58c255bc40b53b0c7ca0f7ac0078f5"
+    },
+    {
+      "path": "project/overlay/source/gui_error.cpp",
+      "bytes": 981,
+      "sha256": "827305c138f0835288822fab4503a2e771546a7eefad09747edf320ad897e9ef"
+    },
+    {
+      "path": "project/overlay/source/gui_error.hpp",
+      "bytes": 289,
+      "sha256": "ce71904cef12fca176c3c166f81a04c14ea16688f66c24c4190522cfe17bfafd"
+    },
+    {
+      "path": "project/overlay/source/gui_loading_settings.cpp",
+      "bytes": 1065,
+      "sha256": "9384c53516364b3ce4220d7631ddde938b92aab5cd6b67cd4c6b3d7a0cc6bf2d"
+    },
+    {
+      "path": "project/overlay/source/gui_loading_settings.hpp",
+      "bytes": 141,
+      "sha256": "c0715cd8bdee2713d758a26f325381f958804d3deffa4c435741329c1582ca22"
+    },
+    {
+      "path": "project/overlay/source/gui_main.cpp",
+      "bytes": 1918,
+      "sha256": "7313715124b3c666220ccea95438d009caf9cc58c207b257edd1e65f7c37f30c"
+    },
+    {
+      "path": "project/overlay/source/gui_main.hpp",
+      "bytes": 262,
+      "sha256": "ec2b595462213d9a799f1d011e566b61b71445268bef40b4c02da59c3edf6ef1"
+    },
+    {
+      "path": "project/overlay/source/gui_misc.cpp",
+      "bytes": 3478,
+      "sha256": "cfd65a892ff204df6137b0c8d872ade5b52ca9d53e18303ff50076dac65dd00f"
+    },
+    {
+      "path": "project/overlay/source/gui_misc.hpp",
+      "bytes": 130,
+      "sha256": "5f42a7cbc5adaa11c5ca34c012a5799f0a0500aa3971e66e76a7b61f047deb96"
+    },
+    {
+      "path": "project/overlay/source/gui_ost_playlist.cpp",
+      "bytes": 15186,
+      "sha256": "f79f54493370312c43c619fdd56cfc8a11e6d7a63059a324919e2b0d8a4f7ae3"
+    },
+    {
+      "path": "project/overlay/source/gui_ost_playlist.hpp",
+      "bytes": 1532,
+      "sha256": "3ee89a7dabfeee5a81ea72f6455063761c11ea90e092fdf0871d2248df019ba8"
+    },
+    {
+      "path": "project/overlay/source/gui_power_state_diagnostics.cpp",
+      "bytes": 5028,
+      "sha256": "77c21b49a56eabcfa6d300435245cf343a828d23e87356c1dabee2e7bb5e1fd8"
+    },
+    {
+      "path": "project/overlay/source/gui_power_state_diagnostics.hpp",
+      "bytes": 675,
+      "sha256": "4ba8249293d7793766d503b838b6873a4a6f71147055d81709d40e67096485f0"
+    },
+    {
+      "path": "project/overlay/source/gui_qlaunch_scene_diagnostics.cpp",
+      "bytes": 6134,
+      "sha256": "65049186daa69f48d331e62079d2d3bf0211fc32d7fa801808f97ea25b9f39b8"
+    },
+    {
+      "path": "project/overlay/source/gui_qlaunch_scene_diagnostics.hpp",
+      "bytes": 763,
+      "sha256": "96eeb9aabb81845d7c4647c21aab4eb1bd5bf42cffe4023b0e74ef92f50da330"
+    },
+    {
+      "path": "project/overlay/source/gui_quick_settings_settings.cpp",
+      "bytes": 1631,
+      "sha256": "5fb38ffbd058cf5e4a11beb5c0d34a8f7d35b7d5dade6ba74e9331e209479e36"
+    },
+    {
+      "path": "project/overlay/source/gui_quick_settings_settings.hpp",
+      "bytes": 147,
+      "sha256": "aa073188d5cc9af1976163c46456d7cbf81f38bcb90eab51cba0ab701496fecf"
+    },
+    {
+      "path": "project/overlay/source/gui_ui_activity_diagnostics.cpp",
+      "bytes": 11740,
+      "sha256": "d84cb9dd0d7560d4bab040581ea6c0d5d891ea9f0f36dbd37b30675e6e4bbda4"
+    },
+    {
+      "path": "project/overlay/source/gui_ui_activity_diagnostics.hpp",
+      "bytes": 1952,
+      "sha256": "ffcf65c8076d1ff40dbfc6cb68b8631437161709df2a0373768895ea017173c8"
+    },
+    {
+      "path": "project/overlay/source/main.cpp",
+      "bytes": 2485,
+      "sha256": "f753a912e97279854e32a33a15540caa4b17beeefe622993f658c12550ae1032"
+    },
+    {
+      "path": "project/overlay/source/ost_ui_state.cpp",
+      "bytes": 1583,
+      "sha256": "9a769fd82cad77b2c7fd60b8e6a564b234a4f6bb41a97225d1a3ca20037f8ddc"
+    },
+    {
+      "path": "project/overlay/source/ost_ui_state.hpp",
+      "bytes": 549,
+      "sha256": "c5257c217d5292595c7067d1bbf4df724aa47ee98399df038d053e5583aa5f93"
+    },
+    {
+      "path": "project/overlay/source/ost_volume_slider.hpp",
+      "bytes": 1239,
+      "sha256": "06789030b2a1bf1d9f9813753bdf3eda968442b14a24a861651d8b9598b16baa"
+    },
+    {
+      "path": "project/overlay/source/symbol.hpp",
+      "bytes": 75289,
+      "sha256": "885cc30d4f8cc950a5a70be9bed1e912b783193fda9d58fc9482824e250fef5f"
+    },
+    {
+      "path": "project/sample/libtesla_1586882452.jpg",
+      "bytes": 197781,
+      "sha256": "948673bd0458ff954a765e26c2c8f127a595a21a2162a388e90559b253acaceb"
+    },
+    {
+      "path": "project/sample/libtesla_1586882672.jpg",
+      "bytes": 198245,
+      "sha256": "4c6fe221586cdaa5e336d4332794a6e76ccb7222ae0d08fbfb56df65a5f6cc07"
+    },
+    {
+      "path": "project/sample/libtesla_1586882735.jpg",
+      "bytes": 238820,
+      "sha256": "969eee6fdad77aa73db04ece583b173cd780b5d94ef2bb01762971de55e5a884"
+    },
+    {
+      "path": "project/sys-tune/Makefile",
+      "bytes": 8036,
+      "sha256": "52c4497b2b140be6764601e2d1f16dba1d23020457246f0689b05af01ca316bd"
+    },
+    {
+      "path": "project/sys-tune/nxExt/.gitignore",
+      "bytes": 72,
+      "sha256": "1fcc82642f556d8a53f3e3480b66133514bce01e7dc8036c9c05c5ead46b2ae2"
+    },
+    {
+      "path": "project/sys-tune/nxExt/Makefile",
+      "bytes": 4892,
+      "sha256": "c0d908100cd7cfed172bd0dc44ca8bbb8e2593c50ca85ddfc53d001701e20894"
+    },
+    {
+      "path": "project/sys-tune/nxExt/include/nxExt/cpp/lockable_mutex.h",
+      "bytes": 1152,
+      "sha256": "2947ab348d9ea19229e064304082a7e089039ec08f8f3c889f8c7c867761972f"
+    },
+    {
+      "path": "project/sys-tune/nxExt/include/nxExt/ipc_server.h",
+      "bytes": 1468,
+      "sha256": "bd288dfed39ec040a0fe7de349f04a7025a5858100e8820f498fdb440b656848"
+    },
+    {
+      "path": "project/sys-tune/nxExt/include/nxExt.h",
+      "bytes": 580,
+      "sha256": "13376cf64a84d7187c25435251a6d87633be975b278a92ea0fe7744b10c07fc5"
+    },
+    {
+      "path": "project/sys-tune/nxExt/src/ipc_server.c",
+      "bytes": 5966,
+      "sha256": "e54219627df272e746fb0187cd68919068e2907a6671430ea8a8945e268efcaf"
+    },
+    {
+      "path": "project/sys-tune/source/album_video_observer.cpp",
+      "bytes": 24992,
+      "sha256": "3969c48e306d068218a122335fd92ac653c0588b33c9254f11edcf67e6a35675"
+    },
+    {
+      "path": "project/sys-tune/source/album_video_observer.hpp",
+      "bytes": 437,
+      "sha256": "f55b30e3ed96006f1b7b00d58d8ad742ed97bb2459593b25f39b903c3db1b8ae"
+    },
+    {
+      "path": "project/sys-tune/source/impl/aud_wrapper.c",
+      "bytes": 2370,
+      "sha256": "691156fa3d8e114087ef85c2c6cc6be4fd32734a2f8951234376ea107c16f625"
+    },
+    {
+      "path": "project/sys-tune/source/impl/aud_wrapper.h",
+      "bytes": 715,
+      "sha256": "a2a745aef52190421306e32dfba4c435989ca0ca05638695805d5e20b5f166a6"
+    },
+    {
+      "path": "project/sys-tune/source/impl/audout.c",
+      "bytes": 834,
+      "sha256": "76e471755a4281cb3621c639461a0bcf6793d1073ca7c62d5d3485debc6f2986"
+    },
+    {
+      "path": "project/sys-tune/source/impl/audout.h",
+      "bytes": 501,
+      "sha256": "d79044448b5ab3f83f556e9fd034c396d6973ebf3be9a602f4c22f757f91a87b"
+    },
+    {
+      "path": "project/sys-tune/source/impl/dr_flac.h",
+      "bytes": 525482,
+      "sha256": "02396893bbe072572ad0b66d151de9f7692fb5fae97e7143ff1cbdbc24cef166"
+    },
+    {
+      "path": "project/sys-tune/source/impl/dr_mp3.h",
+      "bytes": 204432,
+      "sha256": "8713589e5dc0ad1b10d88502e2fac02640696a2f858b245317e81b4c6bdbbf46"
+    },
+    {
+      "path": "project/sys-tune/source/impl/dr_wav.h",
+      "bytes": 361376,
+      "sha256": "380c8e2e03811eeb3e4fabea2920da7f9b34b7cb27a2eb9ebb719fb8c90b8e5e"
+    },
+    {
+      "path": "project/sys-tune/source/impl/music_player.cpp",
+      "bytes": 74456,
+      "sha256": "9dfcd8922ae1840b4e318b24dd42ddf7c7ab83627ec850717f0b49f43a62c236"
+    },
+    {
+      "path": "project/sys-tune/source/impl/music_player.hpp",
+      "bytes": 1747,
+      "sha256": "1e1da5c5dbb33b50dcf0a1ba92672eb23f41f0c7c71fca93a4a144e94cd78fda"
+    },
+    {
+      "path": "project/sys-tune/source/impl/resamplers/SDL_audioEX.c",
+      "bytes": 118520,
+      "sha256": "98eba1905bded5efc70015dc90cfa12622e8b15c6e7fc17451319b0ca88f9ec1"
+    },
+    {
+      "path": "project/sys-tune/source/impl/resamplers/SDL_audioEX.h",
+      "bytes": 12158,
+      "sha256": "747cf4d37b36ab87bb715c3888d64a55000a2bc32cda73504eb85e17fe572042"
+    },
+    {
+      "path": "project/sys-tune/source/impl/source.cpp",
+      "bytes": 14262,
+      "sha256": "e24db6a1cfb0fead3867de88bd25b8d9094d6c252bcc10788ec935a96fb07b40"
+    },
+    {
+      "path": "project/sys-tune/source/impl/source.hpp",
+      "bytes": 1974,
+      "sha256": "a48675bcf3df202766e79bbcb2bc630e04567f4f50d17b0af525a03e1d1fb70f"
+    },
+    {
+      "path": "project/sys-tune/source/main.cpp",
+      "bytes": 3868,
+      "sha256": "2054272092b61b21032e42ac379eec4647c5ed3517449a3cd22683cfbe326f5d"
+    },
+    {
+      "path": "project/sys-tune/source/power_state_observer.cpp",
+      "bytes": 7940,
+      "sha256": "4afc79e8bb3d53e9a53daabf796a346e676a07c26b9bae9bc4f6ec479769a8fa"
+    },
+    {
+      "path": "project/sys-tune/source/power_state_observer.hpp",
+      "bytes": 535,
+      "sha256": "550a0ec0a1e7c2f91fa23689eaadec5c76e5088b5412847e5b7cfb4ddcd9f518"
+    },
+    {
+      "path": "project/sys-tune/source/qlaunch_scene_observer.cpp",
+      "bytes": 28137,
+      "sha256": "d71535f737f83a765a18e05221722f0fef8b8d183ef5f3e2e8aff3df7c90f777"
+    },
+    {
+      "path": "project/sys-tune/source/qlaunch_scene_observer.hpp",
+      "bytes": 564,
+      "sha256": "0366a3153ab69496b2e29a6ed3c55e6ec8ebd670cc626563f91e460009250414"
+    },
+    {
+      "path": "project/sys-tune/source/tune_result.hpp",
+      "bytes": 1405,
+      "sha256": "6ace6cac83f9fa359edd360e038de52dc01c7c2de919dd7cb81e48279ec281c1"
+    },
+    {
+      "path": "project/sys-tune/source/tune_service.cpp",
+      "bytes": 7586,
+      "sha256": "490decefe159cef38dca470bb31f89c571b6d6e80d8e2f84634f57cbbc1799ad"
+    },
+    {
+      "path": "project/sys-tune/source/tune_service.hpp",
+      "bytes": 136,
+      "sha256": "a0a2bc21bcc74643d9a72f0e1e54e5b7c9f5e77b942e61d259639b19cd1049aa"
+    },
+    {
+      "path": "project/sys-tune/source/tune_types.hpp",
+      "bytes": 431,
+      "sha256": "9bcdd1d04676128ad1ec84c4df257cff4626ffa6fc64486d9c3dd9bfbf41cfb6"
+    },
+    {
+      "path": "project/sys-tune/source/ui_activity_observer.cpp",
+      "bytes": 27958,
+      "sha256": "cfa3601b58d7cc0b3e35843e1adc68107cf648a0b32563219e58616848eaeef7"
+    },
+    {
+      "path": "project/sys-tune/source/ui_activity_observer.hpp",
+      "bytes": 1101,
+      "sha256": "2e7c4a70ff0baf863b5aa5753f4cdb7050be32e0043b6f6996bcd8f6d1903cd9"
+    },
+    {
+      "path": "project/sys-tune/sys-tune.json",
+      "bytes": 2670,
+      "sha256": "0e9aea7909976b473c0a2ea129f2291ab611656a2a0e4a42ec0876524130594b"
+    },
+    {
+      "path": "project/sys-tune/toolbox.json",
+      "bytes": 93,
+      "sha256": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99"
+    },
+    {
+      "path": "releases/sys-tune-2.3.1-ui-ost.1-a7da4a4.zip",
+      "bytes": 374363,
+      "sha256": "9beb51fb2191ad7306fc724486da9145a5bb451887b26e1421f07544108dafa5"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs1-ee5fc7b.zip",
+      "bytes": 387785,
+      "sha256": "7aaccdf92c5418351b75444df517524a53775d2999db3f417fd5b54b4862e68e"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs10-9637066.zip",
+      "bytes": 437816,
+      "sha256": "3443a231dddc35fa234bef1f499f227f9b33280489e1d12869e5b3d2af9a17ed"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs11-79f2e94.zip",
+      "bytes": 438192,
+      "sha256": "41cff15e5bbb58cb5fe4f914c781de7f08408cbc12a61a3b05963fafba4f2e95"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs2-afb4388.zip",
+      "bytes": 388021,
+      "sha256": "cea9d4b8de6701c38ee2bd6f66b8d972fcb585d2d1772bb73c4c5c3dd9b5ee25"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs3-0408b3a.zip",
+      "bytes": 390417,
+      "sha256": "820701dc27c08f81880ed080d0b5024fd4f6cc153038c555b86930ecd9f3a4bd"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs4-2320cea.zip",
+      "bytes": 399220,
+      "sha256": "893b75a51fada665bc7a48ddf5f81c08f5bf5aa3a9285277b7cb8d3d21f18d4c"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs5-f4daa02.zip",
+      "bytes": 409983,
+      "sha256": "183b6f092fd2b3e30a67782ba3016c9fd10f44247bfe1c6710162e25cc0fd2a6"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs6-fd716e6.zip",
+      "bytes": 416293,
+      "sha256": "5c21f8c4fa3e83e172b509946e0ae5b1990f9675aa974aacd5a3e8af3331ce3c"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs7-7960f42.zip",
+      "bytes": 425417,
+      "sha256": "6be080a0e9dcd375aa0767473e844016289037f5283c0f0459133c511b3534e7"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs8-787197a.zip",
+      "bytes": 425640,
+      "sha256": "be85352d322f1ee691d6b32b7cddc7b20a31408ded2b230f6e48a26bd87658bc"
+    },
+    {
+      "path": "releases/sys-tune-2.4.0-exp.qs9-1c695f3.zip",
+      "bytes": 431026,
+      "sha256": "90230e21d5aa646956621198e458dfb73f06ed861a29828b612455f409ae9534"
+    }
+  ]
+}

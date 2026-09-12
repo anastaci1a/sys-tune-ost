@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+"""Verify an unchanged extracted sys-tune handoff (Python 3 + Git only).
+
+This verifies preservation and archive structure, not console behavior or a build.
+Run before development; intentional source edits will fail baseline checks.
+"""
+from pathlib import Path, PurePosixPath
+import hashlib
+import json
+import os
+import struct
+import subprocess
+import sys
+import zipfile
+
+ROOT = Path(__file__).resolve().parent.parent
+REPO = ROOT / 'project'
+
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+def git(repo, *args):
+    env = dict(os.environ, GIT_OPTIONAL_LOCKS='0')
+    result = subprocess.run(['git', '-C', str(repo), *args], text=True,
+                            capture_output=True, env=env)
+    if result.returncode:
+        raise RuntimeError('Git check failed: ' + ' '.join(args) + '\n' + result.stderr)
+    return result.stdout.strip()
+
+def pfs0_names(data):
+    require(data[:4] == b'PFS0', 'ExeFS lacks PFS0 header')
+    count, strings_size = struct.unpack_from('<II', data, 4)
+    strings_start = 16 + count * 24
+    data_start = strings_start + strings_size
+    require(data_start <= len(data), 'PFS0 table extends past EOF')
+    names = []
+    for i in range(count):
+        offset, size, name_offset, _ = struct.unpack_from('<QQII', data, 16 + i * 24)
+        start = strings_start + name_offset
+        require(strings_start <= start < data_start, 'Invalid PFS0 filename offset')
+        end = data.index(b'\0', start, data_start)
+        require(data_start + offset + size <= len(data), 'PFS0 file extends past EOF')
+        names.append(data[start:end].decode())
+    require(len(names) == len(set(names)), 'Duplicate PFS0 filenames')
+    return sorted(names)
+
+def main():
+    require(not (ROOT / '.git').exists(), 'Git directory must be inside project/, not handoff root')
+    require((REPO / '.git').is_dir(), 'Missing project/.git directory')
+    inventory = json.loads((ROOT / 'context/FILE_MANIFEST.json').read_text())
+    for item in inventory['files']:
+        rel = PurePosixPath(item['path'])
+        require(not rel.is_absolute() and '..' not in rel.parts, 'Unsafe manifest path')
+        p = ROOT.joinpath(*rel.parts)
+        require(p.is_file(), 'Missing file: ' + item['path'])
+        require(p.stat().st_size == item['bytes'], 'Size mismatch: ' + item['path'])
+        require(digest(p.read_bytes()) == item['sha256'], 'Hash mismatch: ' + item['path'])
+    print(f"PASS: {len(inventory['files'])} source, dependency, release and context file hashes")
+
+    manifest = json.loads((ROOT / 'context/ARTIFACT_MANIFEST.json').read_text())
+    require(git(REPO, 'rev-parse', 'HEAD') == manifest['latest_commit'], 'HEAD is not the handoff baseline')
+    require(git(REPO, 'symbolic-ref', '--short', 'HEAD') == manifest['branch'], 'Unexpected checked-out branch')
+    require(git(REPO, 'rev-parse', '--is-shallow-repository') == 'false', 'Shallow superproject')
+    require(not (REPO / '.git/objects/info/alternates').exists(), 'External Git object dependency')
+    require(not git(REPO, 'status', '--porcelain=v1', '--untracked-files=all'), 'Source tree has changed')
+    git(REPO, 'fsck', '--full', '--no-dangling')
+    require(int(git(REPO, 'rev-list', '--all', '--count')) == manifest['superproject_commit_count'],
+            'Preserved superproject commit count changed')
+    expected_refs = (ROOT / 'context/evidence/git-refs.txt').read_text().strip().splitlines()
+    require(sorted(git(REPO, 'show-ref').splitlines()) == sorted(expected_refs), 'Preserved refs changed')
+    for release in manifest['releases']:
+        require(git(REPO, 'cat-file', '-t', release['commit']) == 'commit', 'Missing historical commit')
+    sub = ROOT / manifest['submodule']['path']
+    require(git(sub, 'rev-parse', 'HEAD') == manifest['submodule']['commit'], 'Wrong libtesla revision')
+    require(git(sub, 'rev-parse', '--is-shallow-repository') == 'false', 'Shallow dependency')
+    require(not git(sub, 'status', '--porcelain=v1', '--untracked-files=all'), 'Dependency tree has changed')
+    git(sub, 'fsck', '--full', '--no-dangling')
+    require(not git(REPO, 'submodule', 'status', '--recursive').startswith(('-', '+', 'U')),
+            'Uninitialized or mismatched submodule')
+    print(f"PASS: Git integrity, {manifest['superproject_commit_count']} commits, original refs and pinned dependency")
+
+    count = 0
+    for release in manifest['releases']:
+        if not release['archive']:
+            continue
+        p = ROOT / release['archive']
+        require(digest(p.read_bytes()) == release['sha256'], 'Release hash mismatch')
+        with zipfile.ZipFile(p) as z:
+            require(z.testzip() is None, 'ZIP CRC error: ' + p.name)
+            names = [i.filename for i in z.infolist() if not i.is_dir()]
+            require(len(names) == len(set(names)), 'Duplicate ZIP payload names')
+            require(set(names) == set(release['payload_sha256']), 'Unexpected install payload')
+            for name in names:
+                parts = PurePosixPath(name)
+                require(not parts.is_absolute() and '..' not in parts.parts, 'Unsafe ZIP path')
+                b = z.read(name)
+                require(digest(b) == release['payload_sha256'][name], 'Payload mismatch: ' + name)
+                require(bool(b) or name.endswith('/boot2.flag'), 'Unexpected empty payload')
+            require(pfs0_names(z.read('atmosphere/contents/4200000000000000/exefs.nsp')) == ['main', 'main.npdm'],
+                    'Unexpected ExeFS files')
+            overlay = z.read('switch/.overlays/sys-tune-overlay.ovl')
+            require(release['version'].encode() in overlay, 'Overlay version mismatch')
+            if release['embedded_identity_checks']['overlay_has_commit']:
+                require(release['short_commit'].encode() in overlay, 'Overlay commit mismatch')
+        count += 1
+    require(count == manifest['original_install_zip_count'], 'Wrong archive count')
+    print(f'PASS: {count} original install ZIPs, payload hashes, overlay stamps and ExeFS structure')
+    print('Verified unchanged handoff. No toolchain build or console tests were run.')
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError, KeyError, struct.error, zipfile.BadZipFile) as exc:
+        print('FAIL: ' + str(exc), file=sys.stderr)
+        sys.exit(1)

@@ -1,0 +1,499 @@
+{
+  "prepared_date": "2026-09-12",
+  "latest_commit": "79f2e9429be41e27d1ceb75d13e07776051abbaf",
+  "branch": "power-state-coordinator",
+  "api_from_source": 18,
+  "superproject_commit_count": 245,
+  "submodule": {
+    "path": "project/overlay/lib",
+    "commit": "f766e9b607a05e9756843cbd62b3bfb98be1646c",
+    "repository": "https://github.com/WerWolv/libtesla.git",
+    "populated": true
+  },
+  "source_bundle": {
+    "filename": "sys-tune-home-settings-stability-2.4.0-exp.qs11-79f2e94-source.bundle",
+    "sha256": "3e2d8629cad3ec877545063a67cadd33a1badc049ff1e3654b358633d776380c"
+  },
+  "original_install_zip_count": 12,
+  "custom_iteration_count": 18,
+  "missing_original_install_zip_count": 6,
+  "build_repeated_for_handoff": false,
+  "hardware_tests_for_handoff": false,
+  "releases": [
+    {
+      "commit": "ea29c194a95d7a7cd303946dbc4cc19686b414cd",
+      "short_commit": "ea29c19",
+      "version": "2.1.0-applet-bgm.1",
+      "api_from_source": 5,
+      "committed_at": "2026-08-04T13:58:06-04:00",
+      "subject": "Add per-applet background music mode",
+      "parent": "2a6c31caa234c14660751a094e5e4d78ab84d8f2",
+      "archive": null,
+      "archive_status": "Original install ZIP not recovered; exact source commit included"
+    },
+    {
+      "commit": "bfdd084be26af96e2ab943d0b3574523fe347824",
+      "short_commit": "bfdd084",
+      "version": "2.2.0-ui-ost.1",
+      "api_from_source": 6,
+      "committed_at": "2026-08-04T21:32:05-03:00",
+      "subject": "Turn sys-tune into a system UI OST manager",
+      "parent": "ea29c194a95d7a7cd303946dbc4cc19686b414cd",
+      "archive": null,
+      "archive_status": "Original install ZIP not recovered; exact source commit included"
+    },
+    {
+      "commit": "e656b39e12bf86fe4996b46a58486fa5b7393b50",
+      "short_commit": "e656b39",
+      "version": "2.2.1-ui-ost.1",
+      "api_from_source": 7,
+      "committed_at": "2026-08-04T22:06:46-03:00",
+      "subject": "Replay startup sound after waking from sleep",
+      "parent": "bfdd084be26af96e2ab943d0b3574523fe347824",
+      "archive": null,
+      "archive_status": "Original install ZIP not recovered; exact source commit included"
+    },
+    {
+      "commit": "8ce0d0d81448a17b22fdc1b4324cf3e1cbf1cc0d",
+      "short_commit": "8ce0d0d",
+      "version": "2.2.2-ui-ost.1",
+      "api_from_source": 7,
+      "committed_at": "2026-08-04T22:39:05-03:00",
+      "subject": "Reduce UI soundtrack transition latency",
+      "parent": "e656b39e12bf86fe4996b46a58486fa5b7393b50",
+      "archive": null,
+      "archive_status": "Original install ZIP not recovered; exact source commit included"
+    },
+    {
+      "commit": "191c171b94c789cb0d07a902286a6b092cbd7472",
+      "short_commit": "191c171",
+      "version": "2.2.3-ui-ost.1",
+      "api_from_source": 8,
+      "committed_at": "2026-08-04T20:08:51-07:00",
+      "subject": "Add Home resume timing diagnostics",
+      "parent": "8ce0d0d81448a17b22fdc1b4324cf3e1cbf1cc0d",
+      "archive": null,
+      "archive_status": "Original install ZIP not recovered; exact source commit included"
+    },
+    {
+      "commit": "c0e5dfcf5a9c4ed97f7264baebb1b665abbc046d",
+      "short_commit": "c0e5dfc",
+      "version": "2.3.0-ui-ost.1",
+      "api_from_source": 8,
+      "committed_at": "2026-08-04T21:01:48-07:00",
+      "subject": "Prepare stable UI OST release",
+      "parent": "191c171b94c789cb0d07a902286a6b092cbd7472",
+      "archive": null,
+      "archive_status": "Original install ZIP not recovered; exact source commit included"
+    },
+    {
+      "commit": "a7da4a4816a01dcd05d1f1a952960afce2d662f0",
+      "short_commit": "a7da4a4",
+      "version": "2.3.1-ui-ost.1",
+      "api_from_source": 8,
+      "committed_at": "2026-08-04T21:28:59-07:00",
+      "subject": "Polish soundtrack editor workflow",
+      "parent": "c0e5dfcf5a9c4ed97f7264baebb1b665abbc046d",
+      "archive": "releases/sys-tune-2.3.1-ui-ost.1-a7da4a4.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 374363,
+      "sha256": "9beb51fb2191ad7306fc724486da9145a5bb451887b26e1421f07544108dafa5",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.3.1-ui-ost.1-a7da4a4"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "b3070306d9913fd88cda2782a5d5ed097d8c8f53d77b0232220958a7f131cc6b",
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "switch/.overlays/sys-tune-overlay.ovl": "7d24d9fc5271f611ca033e613c64280a142cacaa36c0c2f2f2cfe34f8dead328"
+      }
+    },
+    {
+      "commit": "ee5fc7bd26e00e0df2e6757374296d1d44adb8cf",
+      "short_commit": "ee5fc7b",
+      "version": "2.4.0-exp.qs1",
+      "api_from_source": 9,
+      "committed_at": "2026-08-04T22:38:47-07:00",
+      "subject": "Add experimental qlaunch scene observer",
+      "parent": "a7da4a4816a01dcd05d1f1a952960afce2d662f0",
+      "archive": "releases/sys-tune-2.4.0-exp.qs1-ee5fc7b.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 387785,
+      "sha256": "7aaccdf92c5418351b75444df517524a53775d2999db3f417fd5b54b4862e68e",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs1-ee5fc7b"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "b3f9b225fbc04153036c5dbe5f5861cb47b615509ac9f93091cf9200297ac573",
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "switch/.overlays/sys-tune-overlay.ovl": "570d6945dd188c2e857a943cd29e68f702daefbdd3dcca842b3678c84eba30cf"
+      }
+    },
+    {
+      "commit": "afb43886b0754d55d58827e6b3036129b7fcc6a6",
+      "short_commit": "afb4388",
+      "version": "2.4.0-exp.qs2",
+      "api_from_source": 10,
+      "committed_at": "2026-08-05T10:20:04-04:00",
+      "subject": "Split qlaunch scenes into independent soundtracks",
+      "parent": "ee5fc7bd26e00e0df2e6757374296d1d44adb8cf",
+      "archive": "releases/sys-tune-2.4.0-exp.qs2-afb4388.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 388021,
+      "sha256": "cea9d4b8de6701c38ee2bd6f66b8d972fcb585d2d1772bb73c4c5c3dd9b5ee25",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs2-afb4388"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "c03c0c9f4e2bc5dcfe15bf0b59d88aa281985537befa4eb8d9485501b159c944",
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "switch/.overlays/sys-tune-overlay.ovl": "aece761278698ef7702a14951a5e7e821574575e61bf48f02adc70ca078218a1"
+      }
+    },
+    {
+      "commit": "0408b3a227d718802bd511d8c04660e5fe2d1044",
+      "short_commit": "0408b3a",
+      "version": "2.4.0-exp.qs3",
+      "api_from_source": 11,
+      "committed_at": "2026-08-05T09:43:17-07:00",
+      "subject": "Fix power transitions and playlist repeat",
+      "parent": "afb43886b0754d55d58827e6b3036129b7fcc6a6",
+      "archive": "releases/sys-tune-2.4.0-exp.qs3-0408b3a.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 390417,
+      "sha256": "820701dc27c08f81880ed080d0b5024fd4f6cc153038c555b86930ecd9f3a4bd",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs3-0408b3a"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "72c730aefe6d1c911e42ca1983bf9e41e3ef8eb3e4444e2be8e671ca4056aca8",
+        "switch/.overlays/sys-tune-overlay.ovl": "541bab21e663d2e986b274a6bb84f0698e0c7c0ccf26125e7ebebbda3db69960"
+      }
+    },
+    {
+      "commit": "2320cea0490b69e81f0bf9359e7b336f81026755",
+      "short_commit": "2320cea",
+      "version": "2.4.0-exp.qs4",
+      "api_from_source": 12,
+      "committed_at": "2026-08-05T15:58:20-06:00",
+      "subject": "Fix lock routing and add per-state volume",
+      "parent": "0408b3a227d718802bd511d8c04660e5fe2d1044",
+      "archive": "releases/sys-tune-2.4.0-exp.qs4-2320cea.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 399220,
+      "sha256": "893b75a51fada665bc7a48ddf5f81c08f5bf5aa3a9285277b7cb8d3d21f18d4c",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": false,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs4"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected.",
+        "overlay_identity_note": "qs4 contains its release version but no short-commit suffix. Original bytes retained; filename commit cannot be independently verified from that string."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "ea8867d9130183d00ecc230c942f444f298145ac92b4d958fbc522d0460f6769",
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "switch/.overlays/sys-tune-overlay.ovl": "5bcd8d63ecc3cbfc2b753236e7da997a2b8c578524fa4b66b0d2d2a8df618262"
+      }
+    },
+    {
+      "commit": "f4daa027f4701f2702e3954b13642c427f719a0c",
+      "short_commit": "f4daa02",
+      "version": "2.4.0-exp.qs5",
+      "api_from_source": 13,
+      "committed_at": "2026-08-05T16:41:12-06:00",
+      "subject": "Add Album video volume and wake playlist",
+      "parent": "2320cea0490b69e81f0bf9359e7b336f81026755",
+      "archive": "releases/sys-tune-2.4.0-exp.qs5-f4daa02.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 409983,
+      "sha256": "183b6f092fd2b3e30a67782ba3016c9fd10f44247bfe1c6710162e25cc0fd2a6",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs5-f4daa02"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "ee42ce68ab34e6f1cc0f52304266476fdb4fb6ca3c09f67904aa8b432200fe17",
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "switch/.overlays/sys-tune-overlay.ovl": "d027cf82db1797b39bfcb2615a9cf4a4161250ffc2e86f18a4697557313fa5d4"
+      }
+    },
+    {
+      "commit": "fd716e6a7b8339a183b60fafb9462085e297c318",
+      "short_commit": "fd716e6",
+      "version": "2.4.0-exp.qs6",
+      "api_from_source": 14,
+      "committed_at": "2026-08-05T17:23:34-06:00",
+      "subject": "Replace Home delay with coordinated power detection",
+      "parent": "f4daa027f4701f2702e3954b13642c427f719a0c",
+      "archive": "releases/sys-tune-2.4.0-exp.qs6-fd716e6.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 416293,
+      "sha256": "5c21f8c4fa3e83e172b509946e0ae5b1990f9675aa974aacd5a3e8af3331ce3c",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs6-fd716e6"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "178ecb09075fd02fea00befcace8d94949f66cebd15119e0beb80fa3c852c4de",
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "switch/.overlays/sys-tune-overlay.ovl": "68c981b33beeabae6c25bd1440adeb1f5ebd851ca2db576017bf36007fdf8bde"
+      }
+    },
+    {
+      "commit": "7960f420a783de859b4e1bf2c464bb6fe20a1dfe",
+      "short_commit": "7960f42",
+      "version": "2.4.0-exp.qs7",
+      "api_from_source": 15,
+      "committed_at": "2026-08-05T18:56:26-06:00",
+      "subject": "Add Quick Settings and launch-aware UI audio",
+      "parent": "fd716e6a7b8339a183b60fafb9462085e297c318",
+      "archive": "releases/sys-tune-2.4.0-exp.qs7-7960f42.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 425417,
+      "sha256": "6be080a0e9dcd375aa0767473e844016289037f5283c0f0459133c511b3534e7",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs7-7960f42"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "3509780d66a26f68187c790afc229b75d1f3017dc44b0d22bbcb05c63f4ef80d",
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "switch/.overlays/sys-tune-overlay.ovl": "85965cf06e3441b5921f39f3e0f550008a9d3e2bc3bd450648679a40bf962a1f"
+      }
+    },
+    {
+      "commit": "787197a2cf522c5836e986492a701208c35c63db",
+      "short_commit": "787197a",
+      "version": "2.4.0-exp.qs8",
+      "api_from_source": 15,
+      "committed_at": "2026-08-06T19:52:50+09:00",
+      "subject": "Fix UI overlay and loading state timing",
+      "parent": "7960f420a783de859b4e1bf2c464bb6fe20a1dfe",
+      "archive": "releases/sys-tune-2.4.0-exp.qs8-787197a.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 425640,
+      "sha256": "be85352d322f1ee691d6b32b7cddc7b20a31408ded2b230f6e48a26bd87658bc",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs8-787197a"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "10c83084139317c3f360686153be2cf06795c8b63240a563253588d8f7a39ec2",
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "switch/.overlays/sys-tune-overlay.ovl": "3ad9702ccca92c30dc56338202f7cf0ccb1284f3ff34663b4355a4599fd4b754"
+      }
+    },
+    {
+      "commit": "1c695f31652e05a7cdcc11ffedf328b0ef27fde8",
+      "short_commit": "1c695f3",
+      "version": "2.4.0-exp.qs9",
+      "api_from_source": 16,
+      "committed_at": "2026-08-06T10:04:12-03:00",
+      "subject": "Fix UI activity routing and loading timing",
+      "parent": "7960f420a783de859b4e1bf2c464bb6fe20a1dfe",
+      "archive": "releases/sys-tune-2.4.0-exp.qs9-1c695f3.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 431026,
+      "sha256": "90230e21d5aa646956621198e458dfb73f06ed861a29828b612455f409ae9534",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs9-1c695f3"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "0a7e58840996479178162319a85eb0b0dffc4f0933b4370d72d0e6023c799269",
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "switch/.overlays/sys-tune-overlay.ovl": "88e3802a9bfd3e96c059c371847261054170624f78b04103cc02631d72305f5e"
+      }
+    },
+    {
+      "commit": "9637066fe4879a0bbb6d647a26908b3c866eb176",
+      "short_commit": "9637066",
+      "version": "2.4.0-exp.qs10",
+      "api_from_source": 17,
+      "committed_at": "2026-08-06T20:47:38+05:00",
+      "subject": "Make UI timing controls configurable",
+      "parent": "1c695f31652e05a7cdcc11ffedf328b0ef27fde8",
+      "archive": "releases/sys-tune-2.4.0-exp.qs10-9637066.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 437816,
+      "sha256": "3443a231dddc35fa234bef1f499f227f9b33280489e1d12869e5b3d2af9a17ed",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs10-9637066"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/exefs.nsp": "049c213eace328a6363f4458681d46e6a40105c573d2a520cb8a6f408ae88732",
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "switch/.overlays/sys-tune-overlay.ovl": "6b54e3fc71dce14720fe5ab82ec8381e9b63373f8229e91811eb5a5fe9b28971"
+      }
+    },
+    {
+      "commit": "79f2e9429be41e27d1ceb75d13e07776051abbaf",
+      "short_commit": "79f2e94",
+      "version": "2.4.0-exp.qs11",
+      "api_from_source": 18,
+      "committed_at": "2026-08-06T18:50:45-03:00",
+      "subject": "Fix applet transitions and Home resume policy",
+      "parent": "9637066fe4879a0bbb6d647a26908b3c866eb176",
+      "archive": "releases/sys-tune-2.4.0-exp.qs11-79f2e94.zip",
+      "archive_status": "Original preserved install ZIP",
+      "bytes": 438192,
+      "sha256": "41cff15e5bbb58cb5fe4f914c781de7f08408cbc12a61a3b05963fafba4f2e95",
+      "zip_crc_ok": true,
+      "embedded_identity_checks": {
+        "overlay_has_version": true,
+        "overlay_has_commit": true,
+        "module_has_version": false,
+        "module_has_commit": false,
+        "overlay_version_strings": [
+          "v2.4.0-exp.qs11-79f2e94"
+        ],
+        "module_identity_note": "The sysmodule Makefile embeds API, but does not define VERSION/GITHASH; no literal release/commit stamp is expected."
+      },
+      "exefs_files": [
+        "main",
+        "main.npdm"
+      ],
+      "payload_sha256": {
+        "atmosphere/contents/4200000000000000/flags/boot2.flag": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "atmosphere/contents/4200000000000000/toolbox.json": "05415faf975758e11e722e28171e2c70808415aa5196b78cf8d3f6be6a4a1d99",
+        "atmosphere/contents/4200000000000000/exefs.nsp": "14a21c887c99bdd1ecf3d01c59c3362b65c4326a3f07726ca3fa12c6eedafb61",
+        "switch/.overlays/sys-tune-overlay.ovl": "6ec89961598292c102238af70505211566bb9fcbe0931818f3e473fce3a396f9"
+      }
+    }
+  ]
+}

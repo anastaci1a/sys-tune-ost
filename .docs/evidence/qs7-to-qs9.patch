@@ -1,0 +1,1127 @@
+diff --git a/Makefile b/Makefile
+index 7e82c79..e0d0398 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,6 +1,6 @@
+ export GITHASH 		:= $(shell git rev-parse --short HEAD)
+-export VERSION 		:= 2.4.0-exp.qs7
+-export API_VERSION 	:= 15
++export VERSION 		:= 2.4.0-exp.qs9
++export API_VERSION 	:= 16
+ export WANT_FLAC 	:= 1
+ export WANT_MP3 	:= 1
+ export WANT_WAV 	:= 1
+diff --git a/common/applet_bgm.hpp b/common/applet_bgm.hpp
+index 1b9c66a..de1e967 100644
+--- a/common/applet_bgm.hpp
++++ b/common/applet_bgm.hpp
+@@ -75,6 +75,15 @@ constexpr std::array DetectionTitleIds = {
+     0x0100000000001004ULL,
+ };
+ 
++constexpr bool IsDetectedAppletTitleId(u64 title_id) {
++    for (const auto detected_title_id : DetectionTitleIds) {
++        if (detected_title_id == title_id) {
++            return true;
++        }
++    }
++    return false;
++}
++
+ // qlaunch implements all three views in one process. The scene observer maps
+ // its internal SystemAppletScene value to these independent soundtrack IDs.
+ constexpr std::array QlaunchTargets = {
+diff --git a/common/config/config.cpp b/common/config/config.cpp
+index cb95606..619ae60 100644
+--- a/common/config/config.cpp
++++ b/common/config/config.cpp
+@@ -385,6 +385,18 @@ void set_quick_settings_volume(float value) {
+         std::clamp(value, 0.f, 1.f), CONFIG_PATH);
+ }
+ 
++auto get_loading_start_delay_ms() -> u32 {
++    return std::clamp<long>(ini_getl(
++        "ost_manager", "loading_start_delay_ms", 500, CONFIG_PATH), 0, 5000);
++}
++
++void set_loading_start_delay_ms(u32 value) {
++    create_config_dir();
++    ini_putl(
++        "ost_manager", "loading_start_delay_ms",
++        std::min(value, 5000u), CONFIG_PATH);
++}
++
+ auto get_fade_in_ms() -> u32 {
+     return std::clamp<long>(ini_getl("ost_manager", "fade_in_ms", 150, CONFIG_PATH), 0, 5000);
+ }
+diff --git a/common/config/config.hpp b/common/config/config.hpp
+index 40480ae..c8e87b1 100644
+--- a/common/config/config.hpp
++++ b/common/config/config.hpp
+@@ -79,6 +79,10 @@ void set_album_video_volume(float value);
+ auto get_quick_settings_volume() -> float;
+ void set_quick_settings_volume(float value);
+ 
++// Time between detecting an application launch and starting Loading OST.
++auto get_loading_start_delay_ms() -> u32;
++void set_loading_start_delay_ms(u32 value);
++
+ auto get_fade_in_ms() -> u32;
+ void set_fade_in_ms(u32 value);
+ auto get_fade_out_ms() -> u32;
+diff --git a/ipc/tune.h b/ipc/tune.h
+index f624f47..8c497ac 100644
+--- a/ipc/tune.h
++++ b/ipc/tune.h
+@@ -155,10 +155,27 @@ typedef struct {
+     u32 last_event_type;
+     u32 last_applet_id;
+     u32 last_event_index;
+-    u32 reserved0;
++    u32 input_status;
++    u32 input_last_result;
++    u32 home_sample_count;
++    u32 home_press_count;
++    u32 home_short_press_count;
++    u32 home_long_press_count;
++    u32 quick_settings_home_close_count;
++    u32 quick_settings_b_close_count;
++    u32 quick_settings_touch_close_count;
++    u32 library_applet_event_count;
++    u32 library_applet_in_focus_count;
++    u32 library_applet_out_of_focus_count;
++    u32 library_applet_focus_update_count;
++    u32 last_library_applet_event_type;
+     u64 last_program_id;
+     u64 application_process_id;
+     u64 application_program_id;
++    u64 last_home_short_press_tick;
++    u64 last_library_applet_program_id;
++    u64 last_library_applet_event_tick;
++    u64 foreground_library_applet_program_id;
+     u8 quick_settings_open;
+     u8 loading_active;
+     u8 application_out_of_focus;
+@@ -166,6 +183,14 @@ typedef struct {
+     u8 has_overlay_signal;
+     u8 has_application_signal;
+     u8 has_last_event;
++    u8 input_available;
++    u8 home_button_held;
++    u8 has_home_button_signal;
++    u8 has_npad_signal;
++    u8 has_touch_signal;
++    u8 has_library_applet_signal;
++    u8 library_applet_foreground;
++    u8 loading_overlay_active;
+     u8 reserved[1];
+ } TuneUiActivityObserverInfo;
+ 
+diff --git a/overlay/source/gui_misc.cpp b/overlay/source/gui_misc.cpp
+index 018c484..e74e51c 100644
+--- a/overlay/source/gui_misc.cpp
++++ b/overlay/source/gui_misc.cpp
+@@ -88,6 +88,14 @@ tsl::elm::Element* MiscGui::createUI() {
+         },
+         1.f));
+ 
++    list->addItem(new tsl::elm::CategoryHeader("Loading Screen"));
++    list->addItem(new ElmTextBlock(
++        "Waits after launch detection before\n"
++        "starting the Loading Screen OST."));
++    list->addItem(MakeDurationSlider(
++        "Start Delay", config::get_loading_start_delay_ms(),
++        config::set_loading_start_delay_ms));
++
+     list->addItem(new tsl::elm::CategoryHeader("Track Boundaries"));
+     list->addItem(new ElmTextBlock(
+         "Used when tracks start or end naturally.\n"
+diff --git a/overlay/source/gui_ui_activity_diagnostics.cpp b/overlay/source/gui_ui_activity_diagnostics.cpp
+index 549f5aa..c106c70 100644
+--- a/overlay/source/gui_ui_activity_diagnostics.cpp
++++ b/overlay/source/gui_ui_activity_diagnostics.cpp
+@@ -47,7 +47,7 @@ const char* AppletText(u32 applet_id) {
+         case AppletId_application:
+             return "Application";
+         case AppletId_OverlayApplet:
+-            return "Quick Settings";
++            return "Overlay / Launch UI";
+         default:
+             return "Other";
+     }
+@@ -85,13 +85,18 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
+ 
+     list->addItem(new tsl::elm::CategoryHeader("UI Activity Observer"));
+     list->addItem(new ElmTextBlock(
+-        "Tracks Quick Settings and game startup.\n"
+-        "No scene ID or fixed delay is used."));
++        "Tracks HOME input, applet focus, and\n"
++        "the application launch animation."));
+     m_status = new tsl::elm::ListItem("Observer Status");
+     m_result = new tsl::elm::ListItem("Last Result");
+     list->addItem(m_status);
+     list->addItem(m_result);
+ 
++    m_input_status = new tsl::elm::ListItem("Input Status");
++    m_input_result = new tsl::elm::ListItem("Input Result");
++    list->addItem(m_input_status);
++    list->addItem(m_input_result);
++
+     auto reset = new tsl::elm::ListItem("Reset Signal History");
+     reset->setClickListener([this, frame](u64 keys) {
+         if (!(keys & HidNpadButton_A)) {
+@@ -109,17 +114,31 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
+     list->addItem(reset);
+ 
+     list->addItem(new tsl::elm::CategoryHeader("Quick Settings"));
+-    m_quick_settings_signal = new tsl::elm::ListItem("Signal");
++    m_quick_settings_signal = new tsl::elm::ListItem("HOME Signal");
++    m_home_held = new tsl::elm::ListItem("HOME Button");
++    m_home_short_presses = new tsl::elm::ListItem("Short Presses");
++    m_home_long_presses = new tsl::elm::ListItem("Long Presses");
+     m_quick_settings = new tsl::elm::ListItem("Panel State");
+     m_quick_settings_opens = new tsl::elm::ListItem("Open Signals");
+     m_quick_settings_closes = new tsl::elm::ListItem("Close Signals");
++    m_quick_settings_home_closes = new tsl::elm::ListItem("HOME Exits");
++    m_quick_settings_b_closes = new tsl::elm::ListItem("B Exits");
++    m_quick_settings_touch_closes = new tsl::elm::ListItem("Touch Exits");
+     list->addItem(m_quick_settings_signal);
++    list->addItem(m_home_held);
++    list->addItem(m_home_short_presses);
++    list->addItem(m_home_long_presses);
+     list->addItem(m_quick_settings);
+     list->addItem(m_quick_settings_opens);
+     list->addItem(m_quick_settings_closes);
++    list->addItem(m_quick_settings_home_closes);
++    list->addItem(m_quick_settings_b_closes);
++    list->addItem(m_quick_settings_touch_closes);
+ 
+     list->addItem(new tsl::elm::CategoryHeader("Loading Screen"));
+-    m_loading_signal = new tsl::elm::ListItem("Signal");
++    m_loading_signal = new tsl::elm::ListItem("Application Signal");
++    m_loading_overlay_signal = new tsl::elm::ListItem("Launch UI Signal");
++    m_loading_overlay = new tsl::elm::ListItem("Launch UI Lifetime");
+     m_loading = new tsl::elm::ListItem("Loading State");
+     m_handoff = new tsl::elm::ListItem("In-Game Handoff");
+     m_loading_starts = new tsl::elm::ListItem("Loading Starts");
+@@ -127,6 +146,8 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
+     m_application_pid = new tsl::elm::ListItem("Application PID");
+     m_application_program = new tsl::elm::ListItem("Application Program");
+     list->addItem(m_loading_signal);
++    list->addItem(m_loading_overlay_signal);
++    list->addItem(m_loading_overlay);
+     list->addItem(m_loading);
+     list->addItem(m_handoff);
+     list->addItem(m_loading_starts);
+@@ -146,6 +167,18 @@ tsl::elm::Element* UiActivityDiagnosticsGui::createUI() {
+     list->addItem(m_application_background);
+     list->addItem(m_application_exits);
+ 
++    list->addItem(new tsl::elm::CategoryHeader("Library Applet Focus"));
++    m_library_signal = new tsl::elm::ListItem("Signal");
++    m_library_foreground = new tsl::elm::ListItem("Visible State");
++    m_library_program = new tsl::elm::ListItem("Latest Program");
++    m_library_focuses = new tsl::elm::ListItem("Focus Events");
++    m_library_out_of_focus = new tsl::elm::ListItem("Background Events");
++    list->addItem(m_library_signal);
++    list->addItem(m_library_foreground);
++    list->addItem(m_library_program);
++    list->addItem(m_library_focuses);
++    list->addItem(m_library_out_of_focus);
++
+     list->addItem(new tsl::elm::CategoryHeader("Latest PDM Event"));
+     m_latest_type = new tsl::elm::ListItem("Event Type");
+     m_latest_applet = new tsl::elm::ListItem("Applet");
+@@ -179,18 +212,39 @@ void UiActivityDiagnosticsGui::refresh() {
+         info.status != TuneUiActivityObserverStatus_Active);
+     SetValue(m_result, ResultText(info.last_result),
+         R_SUCCEEDED(info.last_result));
++    SetValue(m_input_status, StatusText(info.input_status),
++        info.input_status != TuneUiActivityObserverStatus_Active);
++    SetValue(m_input_result, ResultText(info.input_last_result),
++        R_SUCCEEDED(info.input_last_result));
+     SetValue(m_quick_settings_signal,
+-        info.has_overlay_signal ? "Seen" : "Waiting",
+-        !info.has_overlay_signal);
++        info.has_home_button_signal ? "Seen" : "Waiting",
++        !info.has_home_button_signal);
++    SetValue(m_home_held,
++        info.home_button_held ? "Held" : "Released");
++    SetValue(m_home_short_presses,
++        std::to_string(info.home_short_press_count));
++    SetValue(m_home_long_presses,
++        std::to_string(info.home_long_press_count));
+     SetValue(m_quick_settings,
+         info.quick_settings_open ? "Open" : "Closed");
+     SetValue(m_quick_settings_opens,
+         std::to_string(info.quick_settings_open_count));
+     SetValue(m_quick_settings_closes,
+         std::to_string(info.quick_settings_close_count));
++    SetValue(m_quick_settings_home_closes,
++        std::to_string(info.quick_settings_home_close_count));
++    SetValue(m_quick_settings_b_closes,
++        std::to_string(info.quick_settings_b_close_count));
++    SetValue(m_quick_settings_touch_closes,
++        std::to_string(info.quick_settings_touch_close_count));
+     SetValue(m_loading_signal,
+         info.has_application_signal ? "Seen" : "Waiting",
+         !info.has_application_signal);
++    SetValue(m_loading_overlay_signal,
++        info.has_overlay_signal ? "Seen" : "Waiting",
++        !info.has_overlay_signal);
++    SetValue(m_loading_overlay,
++        info.loading_overlay_active ? "Holding" : "Inactive");
+     SetValue(m_loading, info.loading_active ? "Active" : "Inactive");
+     SetValue(m_handoff,
+         info.application_handoff_active ? "Silent" : "Inactive");
+@@ -215,6 +269,19 @@ void UiActivityDiagnosticsGui::refresh() {
+         std::to_string(info.application_background_count));
+     SetValue(m_application_exits,
+         std::to_string(info.application_exit_count));
++    SetValue(m_library_signal,
++        info.has_library_applet_signal ? "Seen" : "Waiting",
++        !info.has_library_applet_signal);
++    SetValue(m_library_foreground,
++        info.library_applet_foreground ? "Applet" : "Home / Other");
++    SetValue(m_library_program,
++        info.last_library_applet_program_id
++            ? HexText(info.last_library_applet_program_id) : "None",
++        info.last_library_applet_program_id == 0);
++    SetValue(m_library_focuses,
++        std::to_string(info.library_applet_in_focus_count));
++    SetValue(m_library_out_of_focus,
++        std::to_string(info.library_applet_out_of_focus_count));
+     SetValue(m_latest_type,
+         info.has_last_event ? EventTypeText(info.last_event_type) : "Not Seen",
+         !info.has_last_event);
+diff --git a/overlay/source/gui_ui_activity_diagnostics.hpp b/overlay/source/gui_ui_activity_diagnostics.hpp
+index 9648f0a..80ccfb3 100644
+--- a/overlay/source/gui_ui_activity_diagnostics.hpp
++++ b/overlay/source/gui_ui_activity_diagnostics.hpp
+@@ -12,11 +12,21 @@ class UiActivityDiagnosticsGui final : public tsl::Gui {
+ 
+     tsl::elm::ListItem* m_status{};
+     tsl::elm::ListItem* m_result{};
++    tsl::elm::ListItem* m_input_status{};
++    tsl::elm::ListItem* m_input_result{};
+     tsl::elm::ListItem* m_quick_settings_signal{};
++    tsl::elm::ListItem* m_home_held{};
++    tsl::elm::ListItem* m_home_short_presses{};
++    tsl::elm::ListItem* m_home_long_presses{};
+     tsl::elm::ListItem* m_quick_settings{};
+     tsl::elm::ListItem* m_quick_settings_opens{};
+     tsl::elm::ListItem* m_quick_settings_closes{};
++    tsl::elm::ListItem* m_quick_settings_home_closes{};
++    tsl::elm::ListItem* m_quick_settings_b_closes{};
++    tsl::elm::ListItem* m_quick_settings_touch_closes{};
+     tsl::elm::ListItem* m_loading_signal{};
++    tsl::elm::ListItem* m_loading_overlay_signal{};
++    tsl::elm::ListItem* m_loading_overlay{};
+     tsl::elm::ListItem* m_loading{};
+     tsl::elm::ListItem* m_handoff{};
+     tsl::elm::ListItem* m_loading_starts{};
+@@ -28,6 +38,11 @@ class UiActivityDiagnosticsGui final : public tsl::Gui {
+     tsl::elm::ListItem* m_application_out_of_focus{};
+     tsl::elm::ListItem* m_application_background{};
+     tsl::elm::ListItem* m_application_exits{};
++    tsl::elm::ListItem* m_library_signal{};
++    tsl::elm::ListItem* m_library_foreground{};
++    tsl::elm::ListItem* m_library_program{};
++    tsl::elm::ListItem* m_library_focuses{};
++    tsl::elm::ListItem* m_library_out_of_focus{};
+     tsl::elm::ListItem* m_latest_type{};
+     tsl::elm::ListItem* m_latest_applet{};
+     tsl::elm::ListItem* m_latest_program{};
+diff --git a/sys-tune/source/impl/music_player.cpp b/sys-tune/source/impl/music_player.cpp
+index 6200065..f957668 100644
+--- a/sys-tune/source/impl/music_player.cpp
++++ b/sys-tune/source/impl/music_player.cpp
+@@ -35,6 +35,7 @@ constexpr u8 PDM_POWER_STATE_SLEEP_MODE_ON = 2;
+ constexpr u8 PDM_POWER_STATE_SLEEP_MODE_OFF = 3;
+ constexpr s32 PDM_EVENT_BATCH_SIZE = 16;
+ constexpr u64 BOOT_WAKE_HOME_STABLE_NS = 1'500'000'000ULL;
++constexpr u64 LIBRARY_FOCUS_SIGNAL_FRESH_NS = 2'000'000'000ULL;
+ 
+ struct OstTrack {
+     char path[applet_bgm::PathSizeMax]{};
+@@ -248,6 +249,7 @@ std::atomic<u32> g_fade_in_ms = 150;
+ std::atomic<u32> g_fade_out_ms = 0;
+ std::atomic<u32> g_mid_song_fade_in_ms = 300;
+ std::atomic<u32> g_mid_song_fade_out_ms = 500;
++std::atomic<u32> g_loading_start_delay_ms = 500;
+ 
+ std::atomic<float> g_global_volume = 1.f;
+ std::atomic<float> g_state_volume = 1.f;
+@@ -700,8 +702,7 @@ float AlbumVideoGainTarget(u64 playing_state) {
+ 
+ float QuickSettingsGainTarget() {
+     const auto snapshot = ui_activity::GetSnapshot();
+-    return snapshot.availability == ui_activity::Availability::Active &&
+-           snapshot.quick_settings_open
++    return snapshot.input_available && snapshot.quick_settings_open
+         ? g_quick_settings_volume.load(std::memory_order_acquire)
+         : 1.f;
+ }
+@@ -1042,6 +1043,7 @@ void Exit() {
+ }
+ 
+ void Finalize() {
++    ui_activity::Exit();
+     if (g_pdmqry_available) {
+         pdmqryExit();
+         g_pdmqry_available = false;
+@@ -1188,6 +1190,16 @@ void PmdmntThreadFunc(void*) {
+     bool enabled = config::get_applet_bgm_enabled();
+     u64 current_target = UINT64_MAX;
+     bool sleeping = false;
++    bool previous_loading_active = false;
++    u64 loading_started_tick = 0;
++    u64 tracked_library_applet = applet_bgm::SilentTitleId;
++    u64 tracked_library_applet_pid = 0;
++    bool library_applet_home_override = false;
++    bool pending_home_fallback = false;
++    bool pending_home_fallback_value = false;
++    u64 pending_home_fallback_tick = 0;
++    u32 last_home_short_press_count = 0;
++    u32 last_library_focus_update_count = 0;
+     // The initial power-on event belongs to cold boot, whose Startup Sound is
+     // already claimed in Initialize(). A real sleep event unlatches wake.
+     bool wake_latched = true;
+@@ -1213,6 +1225,17 @@ void PmdmntThreadFunc(void*) {
+ 
+         ui_activity::Poll(application_pid, application_tid);
+         const auto ui_activity_snapshot = ui_activity::GetSnapshot();
++        const bool loading_active =
++            ui_activity_snapshot.availability ==
++                ui_activity::Availability::Active &&
++            ui_activity_snapshot.application_loading;
++        const auto routing_tick = armGetSystemTick();
++        if (loading_active && !previous_loading_active) {
++            loading_started_tick = routing_tick;
++        } else if (!loading_active) {
++            loading_started_tick = 0;
++        }
++        previous_loading_active = loading_active;
+         const bool application_out_of_focus =
+             ui_activity_snapshot.availability ==
+                 ui_activity::Availability::Active &&
+@@ -1222,14 +1245,108 @@ void PmdmntThreadFunc(void*) {
+         u64 process_target = applet_bgm::SilentTitleId;
+         pm::getAppletBgmTarget(
+             &target_pid, &process_target, application_out_of_focus);
++
++        const auto detected_process_target = process_target;
++        if (applet_bgm::IsDetectedAppletTitleId(
++                detected_process_target)) {
++            if (tracked_library_applet != detected_process_target ||
++                tracked_library_applet_pid != target_pid) {
++                tracked_library_applet = detected_process_target;
++                tracked_library_applet_pid = target_pid;
++                pending_home_fallback = false;
++                last_home_short_press_count =
++                    ui_activity_snapshot.home_short_press_count;
++                last_library_focus_update_count =
++                    ui_activity_snapshot.library_applet_focus_update_count;
++                const bool matching_focus_signal =
++                    ui_activity_snapshot.has_library_applet_signal &&
++                    ui_activity_snapshot.library_applet_program_id ==
++                        detected_process_target;
++                const bool focus_signal_is_fresh = matching_focus_signal &&
++                    ui_activity_snapshot.last_library_applet_event_tick != 0 &&
++                    armTicksToNs(
++                        routing_tick -
++                        ui_activity_snapshot.last_library_applet_event_tick) <=
++                        LIBRARY_FOCUS_SIGNAL_FRESH_NS;
++                // A PDM focus record has no process ID. Do not let an old
++                // OutOfFocus record from a previous instance make a newly
++                // opened applet look like Home until its new InFocus record
++                // arrives.
++                library_applet_home_override = focus_signal_is_fresh &&
++                    !ui_activity_snapshot.library_applet_foreground;
++            } else {
++                const bool focus_updated =
++                    ui_activity_snapshot.library_applet_focus_update_count !=
++                        last_library_focus_update_count;
++                if (focus_updated) {
++                    last_library_focus_update_count =
++                        ui_activity_snapshot.library_applet_focus_update_count;
++                    if (ui_activity_snapshot.library_applet_program_id ==
++                        detected_process_target) {
++                        library_applet_home_override =
++                            !ui_activity_snapshot.library_applet_foreground;
++                        pending_home_fallback = false;
++                    }
++                }
++
++                if (ui_activity_snapshot.home_short_press_count !=
++                    last_home_short_press_count) {
++                    last_home_short_press_count =
++                        ui_activity_snapshot.home_short_press_count;
++                    bool focus_event_matches_press = false;
++                    if (ui_activity_snapshot.has_library_applet_signal &&
++                        ui_activity_snapshot.library_applet_program_id ==
++                            detected_process_target &&
++                        ui_activity_snapshot.last_home_short_press_tick != 0 &&
++                        ui_activity_snapshot.last_library_applet_event_tick !=
++                            0) {
++                        const auto first_tick = std::min(
++                            ui_activity_snapshot.last_home_short_press_tick,
++                            ui_activity_snapshot.last_library_applet_event_tick);
++                        const auto last_tick = std::max(
++                            ui_activity_snapshot.last_home_short_press_tick,
++                            ui_activity_snapshot.last_library_applet_event_tick);
++                        focus_event_matches_press =
++                            armTicksToNs(last_tick - first_tick) <=
++                                500'000'000ULL;
++                    }
++                    if (!focus_event_matches_press) {
++                        pending_home_fallback = true;
++                        pending_home_fallback_value =
++                            !library_applet_home_override;
++                        pending_home_fallback_tick = routing_tick;
++                    }
++                }
++
++                if (pending_home_fallback &&
++                    armTicksToNs(
++                        routing_tick - pending_home_fallback_tick) >=
++                        200'000'000ULL) {
++                    library_applet_home_override =
++                        pending_home_fallback_value;
++                    pending_home_fallback = false;
++                }
++            }
++
++            if (library_applet_home_override) {
++                process_target = applet_bgm::QlaunchTitleId;
++            }
++        } else {
++            tracked_library_applet = applet_bgm::SilentTitleId;
++            tracked_library_applet_pid = 0;
++            library_applet_home_override = false;
++            pending_home_fallback = false;
++            last_home_short_press_count =
++                ui_activity_snapshot.home_short_press_count;
++            last_library_focus_update_count =
++                ui_activity_snapshot.library_applet_focus_update_count;
++        }
++
+         const bool loading_can_own =
+             process_target == applet_bgm::QlaunchTitleId ||
+             (process_target == applet_bgm::SilentTitleId &&
+              target_pid != 0 && target_pid == application_pid);
+-        if (loading_can_own &&
+-            ui_activity_snapshot.availability ==
+-                ui_activity::Availability::Active &&
+-            ui_activity_snapshot.application_loading) {
++        if (loading_can_own && loading_active) {
+             process_target = applet_bgm::LoadingStateId;
+         } else if (process_target == applet_bgm::QlaunchTitleId &&
+             ui_activity_snapshot.availability ==
+@@ -1279,6 +1396,7 @@ void PmdmntThreadFunc(void*) {
+         }
+ 
+         if (power_transitions.last == PowerTransition::Sleep) {
++            ui_activity::CloseQuickSettings();
+             sleeping = true;
+             wake_latched = false;
+             home_scene_gate = HomeSceneGate::None;
+@@ -1291,6 +1409,7 @@ void PmdmntThreadFunc(void*) {
+                 CancelStartupAndRequest(applet_bgm::SilentTitleId, true);
+             }
+         } else if (power_transitions.last == PowerTransition::Wake) {
++            ui_activity::CloseQuickSettings();
+             const bool new_wake = coordinated_power_transition ||
+                 !wake_latched || power_transitions.saw_sleep;
+             sleeping = false;
+@@ -1325,6 +1444,17 @@ void PmdmntThreadFunc(void*) {
+             ? applet_bgm::SilentTitleId
+             : ResolveQlaunchState(process_target, scene_snapshot);
+ 
++        if (target == applet_bgm::LoadingStateId &&
++            loading_started_tick != 0) {
++            const auto delay_ns = static_cast<u64>(
++                g_loading_start_delay_ms.load(std::memory_order_acquire)) *
++                1'000'000ULL;
++            if (armTicksToNs(routing_tick - loading_started_tick) <
++                delay_ns) {
++                target = applet_bgm::SilentTitleId;
++            }
++        }
++
+         if (!sleeping && !power_audio_hold) {
+             const bool scene_ready =
+                 scene_snapshot.availability ==
+@@ -1795,6 +1925,7 @@ void ReloadOstMisc() {
+     g_fade_out_ms = config::get_fade_out_ms();
+     g_mid_song_fade_in_ms = config::get_mid_song_fade_in_ms();
+     g_mid_song_fade_out_ms = config::get_mid_song_fade_out_ms();
++    g_loading_start_delay_ms = config::get_loading_start_delay_ms();
+     g_startup_on_wake = config::get_startup_on_wake();
+     g_separate_wake_playlist = config::get_separate_wake_playlist();
+     g_album_video_volume = config::get_album_video_volume();
+diff --git a/sys-tune/source/main.cpp b/sys-tune/source/main.cpp
+index b3c0646..2456387 100644
+--- a/sys-tune/source/main.cpp
++++ b/sys-tune/source/main.cpp
+@@ -65,7 +65,10 @@ void __appExit(void) {
+ namespace {
+ 
+     alignas(0x1000) u8 gpioThreadBuffer[0x1000];
+-    alignas(0x1000) u8 pmdmntThreadBuffer[0x1000];
++    // Routing now samples HID and several independent UI observers. Keep
++    // enough headroom that an unusually deep service call cannot turn into a
++    // stack-overflow freeze on the detector thread.
++    alignas(0x1000) u8 pmdmntThreadBuffer[0x3000];
+     alignas(0x1000) u8 tuneThreadBuffer[0x6000];
+ 
+ }
+diff --git a/sys-tune/source/ui_activity_observer.cpp b/sys-tune/source/ui_activity_observer.cpp
+index f2765e1..70f8163 100644
+--- a/sys-tune/source/ui_activity_observer.cpp
++++ b/sys-tune/source/ui_activity_observer.cpp
+@@ -11,6 +11,8 @@ namespace {
+ 
+ constexpr u64 OverlayDispProgramId = 0x010000000000100CULL;
+ constexpr s32 EventBatchSize = 16;
++constexpr u64 QuickSettingsHoldNs = 1'000'000'000ULL;
++constexpr u32 QuickSettingsPanelLeft = 760;
+ 
+ Mutex g_info_mutex{};
+ TuneUiActivityObserverInfo g_info{};
+@@ -26,6 +28,25 @@ bool g_application_session_started{};
+ bool g_application_backgrounded{};
+ bool g_application_internal_out_of_focus{};
+ bool g_application_slot_baselined{};
++bool g_overlay_open{};
++bool g_overlay_holds_loading{};
++bool g_hid_available{};
++bool g_hidsys_initialized{};
++bool g_home_baselined{};
++bool g_home_held{};
++bool g_home_long_reported{};
++bool g_suppress_home_long_until_release{};
++u64 g_last_home_sampling_number{};
++u64 g_home_press_tick{};
++u64 g_last_home_short_press_tick{};
++u32 g_home_short_press_serial{};
++bool g_previous_b_held{};
++bool g_previous_touch_active{};
++bool g_has_library_applet_focus_signal{};
++bool g_library_applet_foreground{};
++u64 g_library_applet_program_id{};
++u64 g_last_library_applet_event_tick{};
++u32 g_library_applet_focus_serial{};
+ u32 g_update_count{};
+ 
+ bool ProgramIdsMatch(u64 event_program_id, u64 application_program_id) {
+@@ -54,6 +75,43 @@ bool IsExitEvent(u8 event_type) {
+            event_type == PdmAppletEventType_Exit6;
+ }
+ 
++bool IsForegroundEvent(u8 event_type) {
++    return event_type == PdmAppletEventType_Launch ||
++           event_type == PdmAppletEventType_InFocus;
++}
++
++Result ActivateTouchScreenSafely() {
++    const u64 applet_resource_user_id = appletGetAppletResourceUserId();
++    return serviceDispatchIn(
++        hidGetServiceSession(), 11, applet_resource_user_id,
++        .in_send_pid = true);
++}
++
++Result ActivateNpadSafely() {
++    u32 revision = 0;
++    if (hosversionAtLeast(5, 0, 0)) {
++        revision = 1;
++    }
++    if (hosversionAtLeast(6, 0, 0)) {
++        revision = 2;
++    }
++    if (hosversionAtLeast(8, 0, 0)) {
++        revision = 3;
++    }
++    if (hosversionAtLeast(18, 0, 0)) {
++        revision = 5;
++    }
++
++    const struct {
++        u32 revision;
++        u32 reserved;
++        u64 applet_resource_user_id;
++    } input{revision, 0, appletGetAppletResourceUserId()};
++    return serviceDispatchIn(
++        hidGetServiceSession(), 109, input,
++        .in_send_pid = true);
++}
++
+ void SetLoadingLocked(bool active) {
+     if (g_info.loading_active == active) {
+         return;
+@@ -80,6 +138,165 @@ void SetQuickSettingsLocked(bool open) {
+     ++g_update_count;
+ }
+ 
++void ProcessHomeStateLocked(bool held, u64 tick) {
++    if (held == g_home_held) {
++        return;
++    }
++
++    g_home_held = held;
++    g_info.home_button_held = held;
++    if (held) {
++        ++g_info.home_press_count;
++        g_home_press_tick = tick;
++        g_home_long_reported = false;
++        if (g_info.quick_settings_open) {
++            SetQuickSettingsLocked(false);
++            ++g_info.quick_settings_home_close_count;
++            g_suppress_home_long_until_release = true;
++        } else {
++            g_suppress_home_long_until_release = false;
++        }
++    } else {
++        if (!g_home_long_reported &&
++            !g_suppress_home_long_until_release) {
++            ++g_info.home_short_press_count;
++            ++g_home_short_press_serial;
++            g_last_home_short_press_tick = tick;
++            g_info.last_home_short_press_tick = tick;
++        }
++        g_suppress_home_long_until_release = false;
++    }
++    ++g_update_count;
++}
++
++struct NpadSnapshot {
++    u64 buttons{};
++    bool has_signal{};
++};
++
++template <typename State, typename Getter>
++void AddNpadState(
++    NpadSnapshot* snapshot, HidNpadIdType id, Getter getter) {
++    State state{};
++    if (getter(id, &state, 1) != 0) {
++        snapshot->buttons |= state.buttons;
++        snapshot->has_signal = true;
++    }
++}
++
++NpadSnapshot ReadNpadSnapshot() {
++    NpadSnapshot snapshot{};
++    constexpr std::array ids = {
++        HidNpadIdType_No1,
++        HidNpadIdType_No2,
++        HidNpadIdType_No3,
++        HidNpadIdType_No4,
++        HidNpadIdType_No5,
++        HidNpadIdType_No6,
++        HidNpadIdType_No7,
++        HidNpadIdType_No8,
++        HidNpadIdType_Handheld,
++        HidNpadIdType_Other,
++    };
++
++    for (const auto id : ids) {
++        AddNpadState<HidNpadFullKeyState>(
++            &snapshot, id, hidGetNpadStatesFullKey);
++        AddNpadState<HidNpadHandheldState>(
++            &snapshot, id, hidGetNpadStatesHandheld);
++        AddNpadState<HidNpadJoyDualState>(
++            &snapshot, id, hidGetNpadStatesJoyDual);
++        AddNpadState<HidNpadJoyLeftState>(
++            &snapshot, id, hidGetNpadStatesJoyLeft);
++        AddNpadState<HidNpadJoyRightState>(
++            &snapshot, id, hidGetNpadStatesJoyRight);
++        AddNpadState<HidNpadSystemState>(
++            &snapshot, id, hidGetNpadStatesSystem);
++        AddNpadState<HidNpadSystemExtState>(
++            &snapshot, id, hidGetNpadStatesSystemExt);
++    }
++    return snapshot;
++}
++
++void PollInput() {
++    if (!g_hid_available) {
++        return;
++    }
++
++    HidHomeButtonState home_states[17]{};
++    const auto home_count = hidGetHomeButtonStates(
++        home_states, std::size(home_states));
++    const auto npad = ReadNpadSnapshot();
++    HidTouchScreenState touch_state{};
++    const bool has_touch_sample =
++        hidGetTouchScreenStates(&touch_state, 1) != 0;
++    const auto now = armGetSystemTick();
++
++    mutexLock(&g_info_mutex);
++    if (home_count != 0) {
++        g_info.has_home_button_signal = true;
++        if (!g_home_baselined) {
++            g_home_baselined = true;
++            g_last_home_sampling_number = home_states[0].sampling_number;
++            g_home_held = home_states[0].buttons != 0;
++            g_info.home_button_held = g_home_held;
++            if (g_home_held) {
++                g_home_press_tick = now;
++            }
++        } else {
++            // libnx returns newest-first. Walk backwards so press/release
++            // edges are applied in chronological order.
++            for (size_t i = home_count; i-- > 0;) {
++                const auto& state = home_states[i];
++                if (state.sampling_number <=
++                    g_last_home_sampling_number) {
++                    continue;
++                }
++                g_last_home_sampling_number = state.sampling_number;
++                ++g_info.home_sample_count;
++                ProcessHomeStateLocked(state.buttons != 0, now);
++            }
++        }
++
++        if (g_home_held && !g_home_long_reported &&
++            !g_suppress_home_long_until_release &&
++            armTicksToNs(now - g_home_press_tick) >=
++                QuickSettingsHoldNs) {
++            g_home_long_reported = true;
++            ++g_info.home_long_press_count;
++            SetQuickSettingsLocked(true);
++        }
++    }
++
++    if (npad.has_signal) {
++        g_info.has_npad_signal = true;
++    }
++    const bool b_held = (npad.buttons & HidNpadButton_B) != 0;
++    if (g_info.quick_settings_open && b_held && !g_previous_b_held) {
++        SetQuickSettingsLocked(false);
++        ++g_info.quick_settings_b_close_count;
++    }
++    g_previous_b_held = b_held;
++
++    if (has_touch_sample) {
++        g_info.has_touch_signal = true;
++        const bool touch_active = touch_state.count > 0;
++        if (g_info.quick_settings_open && touch_active &&
++            !g_previous_touch_active) {
++            for (s32 i = 0; i < touch_state.count; ++i) {
++                if (touch_state.touches[i].x <
++                    QuickSettingsPanelLeft) {
++                    SetQuickSettingsLocked(false);
++                    ++g_info.quick_settings_touch_close_count;
++                    break;
++                }
++            }
++        }
++        g_previous_touch_active = touch_active;
++    }
++    mutexUnlock(&g_info_mutex);
++}
++
+ void ApplyEventLocked(
+     const PdmPlayEvent& event, u32 entry_index, bool allow_overlay_events) {
+     if (event.play_event_type != PdmPlayEventType_Applet) {
+@@ -97,17 +314,57 @@ void ApplyEventLocked(
+     g_info.last_program_id = program_id;
+     g_info.has_last_event = true;
+ 
+-    if (allow_overlay_events && applet_id == AppletId_OverlayApplet &&
+-        program_id == OverlayDispProgramId) {
++    if (allow_overlay_events && program_id == OverlayDispProgramId) {
+         ++g_info.overlay_event_count;
+         g_info.has_overlay_signal = true;
+-        if (event_type == PdmAppletEventType_InFocus) {
+-            SetQuickSettingsLocked(true);
++        if (IsForegroundEvent(event_type)) {
++            g_overlay_open = true;
++            if (g_info.loading_active) {
++                // overlayDisp also owns Nintendo's application-launch visual.
++                // It extends Loading only; Quick Settings is detected from the
++                // dedicated HOME-button stream instead.
++                g_overlay_holds_loading = true;
++                g_info.loading_overlay_active = true;
++            }
+         } else if (IsOutOfFocusEvent(event_type) || IsExitEvent(event_type)) {
+-            SetQuickSettingsLocked(false);
++            g_overlay_open = false;
++            if (g_overlay_holds_loading) {
++                g_overlay_holds_loading = false;
++                g_info.loading_overlay_active = false;
++                SetLoadingLocked(false);
++            }
+         }
+     }
+ 
++    if (allow_overlay_events &&
++        applet_bgm::IsDetectedAppletTitleId(program_id) &&
++        (IsForegroundEvent(event_type) ||
++         IsOutOfFocusEvent(event_type) || IsExitEvent(event_type))) {
++        ++g_info.library_applet_event_count;
++        if (IsForegroundEvent(event_type)) {
++            ++g_info.library_applet_in_focus_count;
++            g_library_applet_foreground = true;
++            g_info.library_applet_foreground = true;
++            g_info.foreground_library_applet_program_id = program_id;
++        } else {
++            ++g_info.library_applet_out_of_focus_count;
++            g_library_applet_foreground = false;
++            g_info.library_applet_foreground = false;
++            g_info.foreground_library_applet_program_id = 0;
++        }
++        g_has_library_applet_focus_signal = true;
++        g_library_applet_program_id = program_id;
++        g_last_library_applet_event_tick = armGetSystemTick();
++        ++g_library_applet_focus_serial;
++        ++g_info.library_applet_focus_update_count;
++        g_info.has_library_applet_signal = true;
++        g_info.last_library_applet_program_id = program_id;
++        g_info.last_library_applet_event_type = event_type;
++        g_info.last_library_applet_event_tick =
++            g_last_library_applet_event_tick;
++        ++g_update_count;
++    }
++
+     if (applet_id != AppletId_application) {
+         return;
+     }
+@@ -169,6 +426,13 @@ void ApplyEventLocked(
+         g_application_internal_out_of_focus = false;
+         g_info.application_out_of_focus = false;
+         SetLoadingLocked(launch_should_load);
++        if (launch_should_load && g_overlay_open) {
++            // overlayDisp is long-lived, but its next out-of-focus edge still
++            // marks the end of Nintendo's launch visual. It is deliberately
++            // used only for Loading and never as a Quick Settings state.
++            g_overlay_holds_loading = true;
++            g_info.loading_overlay_active = true;
++        }
+     } else if (event_type == PdmAppletEventType_InFocus) {
+         if (!matches_current) {
+             g_pending_application_loading = false;
+@@ -178,7 +442,9 @@ void ApplyEventLocked(
+             g_application_backgrounded = false;
+             g_application_internal_out_of_focus = false;
+             g_info.application_out_of_focus = false;
+-            SetLoadingLocked(false);
++            if (!g_overlay_holds_loading) {
++                SetLoadingLocked(false);
++            }
+         }
+     } else if (event_type == PdmAppletEventType_OutOfFocus) {
+         if (!matches_current) {
+@@ -190,6 +456,8 @@ void ApplyEventLocked(
+             // applet target, keep game-native loading intervals silent.
+             g_application_internal_out_of_focus = true;
+             g_info.application_out_of_focus = false;
++            g_overlay_holds_loading = false;
++            g_info.loading_overlay_active = false;
+             SetLoadingLocked(false);
+         }
+     } else if (event_type == PdmAppletEventType_OutOfFocus4) {
+@@ -201,6 +469,8 @@ void ApplyEventLocked(
+             g_application_backgrounded = true;
+             g_application_internal_out_of_focus = false;
+             g_info.application_out_of_focus = true;
++            g_overlay_holds_loading = false;
++            g_info.loading_overlay_active = false;
+             SetLoadingLocked(false);
+         }
+     } else if (IsExitEvent(event_type)) {
+@@ -212,6 +482,8 @@ void ApplyEventLocked(
+                 g_application_backgrounded = true;
+             }
+             g_info.application_out_of_focus = false;
++            g_overlay_holds_loading = false;
++            g_info.loading_overlay_active = false;
+             SetLoadingLocked(false);
+         }
+     }
+@@ -263,6 +535,7 @@ void Initialize(bool pdm_available) {
+     g_info.status = pdm_available
+         ? TuneUiActivityObserverStatus_Active
+         : TuneUiActivityObserverStatus_Unavailable;
++    g_info.input_status = TuneUiActivityObserverStatus_Unavailable;
+     mutexUnlock(&g_info_mutex);
+     g_available = pdm_available;
+     g_last_end_entry_index = -1;
+@@ -276,10 +549,67 @@ void Initialize(bool pdm_available) {
+     g_application_backgrounded = false;
+     g_application_internal_out_of_focus = false;
+     g_application_slot_baselined = false;
++    g_overlay_open = false;
++    g_overlay_holds_loading = false;
++    g_hid_available = false;
++    g_hidsys_initialized = false;
++    g_home_baselined = false;
++    g_home_held = false;
++    g_home_long_reported = false;
++    g_suppress_home_long_until_release = false;
++    g_last_home_sampling_number = 0;
++    g_home_press_tick = 0;
++    g_last_home_short_press_tick = 0;
++    g_home_short_press_serial = 0;
++    g_previous_b_held = false;
++    g_previous_touch_active = false;
++    g_has_library_applet_focus_signal = false;
++    g_library_applet_foreground = false;
++    g_library_applet_program_id = 0;
++    g_last_library_applet_event_tick = 0;
++    g_library_applet_focus_serial = 0;
+     g_update_count = 0;
++
++    const auto hid_result = hidInitialize();
++    mutexLock(&g_info_mutex);
++    g_info.input_last_result = hid_result;
++    if (R_SUCCEEDED(hid_result)) {
++        g_hid_available = true;
++        g_info.input_available = true;
++        g_info.input_status = TuneUiActivityObserverStatus_Active;
++    } else {
++        g_info.input_status = TuneUiActivityObserverStatus_Failed;
++    }
++    mutexUnlock(&g_info_mutex);
++    if (R_FAILED(hid_result)) {
++        return;
++    }
++
++    // These activations are intentionally best-effort. AM normally owns the
++    // system-button feeds already, and a failed optional input source must not
++    // turn into a fatal boot path for the audio sysmodule.
++    if (R_SUCCEEDED(hidsysInitialize())) {
++        g_hidsys_initialized = true;
++        hidsysActivateHomeButton();
++    }
++    ActivateNpadSafely();
++    ActivateTouchScreenSafely();
++}
++
++void Exit() {
++    CloseQuickSettings();
++    if (g_hidsys_initialized) {
++        hidsysExit();
++        g_hidsys_initialized = false;
++    }
++    if (g_hid_available) {
++        hidExit();
++        g_hid_available = false;
++    }
+ }
+ 
+ void Poll(u64 application_process_id, u64 application_program_id) {
++    PollInput();
+     if (!g_available) {
+         return;
+     }
+@@ -328,7 +658,11 @@ void Poll(u64 application_process_id, u64 application_program_id) {
+             }
+         }
+         g_info.application_out_of_focus = out_of_focus;
+-        SetLoadingLocked(loading);
++        // The process slot and PDM InFocus record can settle before Nintendo's
++        // launch animation has actually left the screen. Once overlayDisp has
++        // claimed this launch, only its matching close/background edge ends
++        // Loading; a process-slot refresh must not shorten that lifetime.
++        SetLoadingLocked(loading || g_overlay_holds_loading);
+         if (application_process_id != 0 || !has_application) {
+             g_has_pending_application_event = false;
+             g_pending_application_program_id = 0;
+@@ -406,12 +740,34 @@ Snapshot GetSnapshot() {
+             !g_application_backgrounded &&
+             g_tracked_application_pid == 0 &&
+             !g_info.loading_active,
++        .input_available = g_hid_available,
++        .has_home_button_signal =
++            g_info.has_home_button_signal != 0,
++        .home_short_press_count = g_home_short_press_serial,
++        .last_home_short_press_tick =
++            g_last_home_short_press_tick,
++        .has_library_applet_signal =
++            g_has_library_applet_focus_signal,
++        .library_applet_foreground =
++            g_library_applet_foreground,
++        .library_applet_program_id =
++            g_library_applet_program_id,
++        .library_applet_focus_update_count =
++            g_library_applet_focus_serial,
++        .last_library_applet_event_tick =
++            g_last_library_applet_event_tick,
+         .update_count = g_update_count,
+     };
+     mutexUnlock(&g_info_mutex);
+     return snapshot;
+ }
+ 
++void CloseQuickSettings() {
++    mutexLock(&g_info_mutex);
++    SetQuickSettingsLocked(false);
++    mutexUnlock(&g_info_mutex);
++}
++
+ void ResetHistory() {
+     mutexLock(&g_info_mutex);
+     g_info.query_count = 0;
+@@ -425,6 +781,17 @@ void ResetHistory() {
+     g_info.application_exit_count = 0;
+     g_info.quick_settings_open_count = 0;
+     g_info.quick_settings_close_count = 0;
++    g_info.home_sample_count = 0;
++    g_info.home_press_count = 0;
++    g_info.home_short_press_count = 0;
++    g_info.home_long_press_count = 0;
++    g_info.quick_settings_home_close_count = 0;
++    g_info.quick_settings_b_close_count = 0;
++    g_info.quick_settings_touch_close_count = 0;
++    g_info.library_applet_event_count = 0;
++    g_info.library_applet_in_focus_count = 0;
++    g_info.library_applet_out_of_focus_count = 0;
++    g_info.library_applet_focus_update_count = 0;
+     g_info.loading_start_count = 0;
+     g_info.loading_end_count = 0;
+     g_info.last_event_type = 0;
+@@ -434,7 +801,10 @@ void ResetHistory() {
+     g_info.has_overlay_signal = false;
+     g_info.has_application_signal = false;
+     g_info.has_last_event = false;
+-    g_update_count = 0;
++    g_info.has_home_button_signal = false;
++    g_info.has_npad_signal = false;
++    g_info.has_touch_signal = false;
++    g_info.has_library_applet_signal = false;
+     mutexUnlock(&g_info_mutex);
+ }
+ 
+diff --git a/sys-tune/source/ui_activity_observer.hpp b/sys-tune/source/ui_activity_observer.hpp
+index 90ecd51..7201cb8 100644
+--- a/sys-tune/source/ui_activity_observer.hpp
++++ b/sys-tune/source/ui_activity_observer.hpp
+@@ -15,13 +15,24 @@ struct Snapshot {
+     bool application_loading{};
+     bool application_out_of_focus{};
+     bool application_handoff_active{};
++    bool input_available{};
++    bool has_home_button_signal{};
++    u32 home_short_press_count{};
++    u64 last_home_short_press_tick{};
++    bool has_library_applet_signal{};
++    bool library_applet_foreground{};
++    u64 library_applet_program_id{};
++    u32 library_applet_focus_update_count{};
++    u64 last_library_applet_event_tick{};
+     u32 update_count{};
+ };
+ 
+-// Uses the already-open pdm:qry session owned by the music player. The native
+-// hold-HOME panel is overlayDisp; its focus events delimit Quick Settings.
++// Uses the already-open pdm:qry session for launch/applet focus and a
++// best-effort HID observer for the native hold-HOME panel.
+ void Initialize(bool pdm_available);
++void Exit();
+ void Poll(u64 application_process_id, u64 application_program_id);
++void CloseQuickSettings();
+ 
+ TuneUiActivityObserverInfo GetInfo();
+ Snapshot GetSnapshot();
