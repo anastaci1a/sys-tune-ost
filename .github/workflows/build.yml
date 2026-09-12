@@ -61,8 +61,8 @@ jobs:
             devkitpro/devkita64@sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd705de14b4440c00282 \
             bash -euo pipefail -c '
               git config --global --add safe.directory /src
-              aarch64-none-elf-g++ --version
-              pacman -Q libnx
+              "$DEVKITA64/bin/aarch64-none-elf-g++" --version
+              dkp-pacman -Q libnx
               make -j1 clean
               make -j1 dist VERSION="$BUILD_VERSION" GITHASH="$BUILD_COMMIT" RELEASE=1
               empty_objects=$(find overlay sys-tune -type f -name "*.o" -empty -print)
