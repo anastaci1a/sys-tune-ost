@@ -10,7 +10,7 @@ This repository is Ana Jahnel's (`anastaci1a`) fork of
   require console validation; being on `main` does not make this a stable release.
 - There is no separate `dev` branch. Future changes can use short-lived feature
   branches based on `main`. If a pull request is useful, its target is
-  `anastaci1a/sys-tune:main`, within this fork.
+  `anastaci1a/sys-tune-ost:main`, within this fork.
 - The handoff's `power-state-coordinator` was the latest development branch.
   `applet-bgm`, `qlaunch-scene-experiment`, and `album-video-wake-playlist`
   are earlier checkpoints along the same development history, not parallel
@@ -25,7 +25,7 @@ The publication setup does not create pull requests to the original repository.
 ## Remotes
 
 In the maintainer's local checkout, `origin` is
-`https://github.com/anastaci1a/sys-tune.git`, the publishing destination.
+`https://github.com/anastaci1a/sys-tune-ost.git`, the publishing destination.
 `upstream` is `https://github.com/HookedBehemoth/sys-tune.git`, for inspecting
 upstream history. Ordinary pushes default to `origin`.
 

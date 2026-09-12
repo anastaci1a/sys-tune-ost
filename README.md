@@ -1,6 +1,6 @@
 # sys-tune: System UI OST Manager fork
 
-Maintained in [anastaci1a/sys-tune](https://github.com/anastaci1a/sys-tune), with
+Maintained in [anastaci1a/sys-tune-ost](https://github.com/anastaci1a/sys-tune-ost), with
 `main` as this fork's primary development branch. See
 [DEVELOPMENT.md](DEVELOPMENT.md) for the branch workflow, project layout, and
 current build notes.
