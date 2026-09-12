@@ -60,6 +60,8 @@ jobs:
             --env BUILD_VERSION --env BUILD_COMMIT \
             devkitpro/devkita64@sha256:1fc388c3a0d34bd2045a6dadcb1020e069d5f876a187fd705de14b4440c00282 \
             bash -euo pipefail -c '
+              export DEVKITA64="$DEVKITPRO/devkitA64"
+              export PATH="$DEVKITA64/bin:$PATH"
               git config --global --add safe.directory /src
               "$DEVKITA64/bin/aarch64-none-elf-g++" --version
               dkp-pacman -Q libnx
