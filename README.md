@@ -1,5 +1,10 @@
 # sys-tune: System UI OST Manager fork
 
+Maintained in [anastaci1a/sys-tune](https://github.com/anastaci1a/sys-tune), with
+`main` as this fork's primary development branch. See
+[DEVELOPMENT.md](DEVELOPMENT.md) for the branch workflow, project layout, and
+current build notes.
+
 Background soundtrack manager for Nintendo Switch system UI, controlled from
 a Tesla/Ultrahand overlay. This local fork is based on
 [`v2.1.0-beta.1`](https://github.com/HookedBehemoth/sys-tune/releases/tag/v2.1.0-beta.1).
