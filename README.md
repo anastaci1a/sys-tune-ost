@@ -1,4 +1,4 @@
-# sys-tune: System UI OST Manager fork
+# sys-tune-ost: System UI OST Manager fork
 
 Maintained in [anastaci1a/sys-tune-ost](https://github.com/anastaci1a/sys-tune-ost), with
 `main` as this fork's primary development branch. See
