@@ -1,6 +1,6 @@
 # Fork structure and development
 
-This repository is Ana Jahnel's (`anastaci1a`) fork of
+This repository is a fork of
 [HookedBehemoth/sys-tune](https://github.com/HookedBehemoth/sys-tune).
 
 ## Branches
