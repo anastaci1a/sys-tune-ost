@@ -50,7 +50,7 @@ git diff 7960f42 1c695f3
 git diff 9637066 79f2e94
 ```
 
-The first diff explains the discarded regression, the second the qs7-based recovery, and the third the qs11 changes. These commands use original IDs, which may exist only in the preserved recovery bundle in a fresh clone. Rewritten IDs are in [the mapping](evidence/author-rewrite-map.csv); the original patches are also saved in `.docs/evidence/`.
+The first diff explains the discarded regression, the second the qs7-based recovery, and the third the qs11 changes. These commands use original IDs, which may exist only in the preserved recovery bundle in a fresh clone. Rewritten IDs are in [the mapping](evidence/author-rewrite-map.csv); the original patches are also saved in `docs/evidence/`.
 
 ## Required artifact checks for a new release
 

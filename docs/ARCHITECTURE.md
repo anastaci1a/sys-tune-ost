@@ -35,9 +35,9 @@ All paths above are relative to the repository root, `sys-tune-ost/`.
 | Path | Role |
 | --- | --- |
 | `AGENTS.md` | Agent procedures and documentation maintenance contract |
-| `.docs/README.md` | Project documentation index |
-| `.docs/evidence/` | Preserved diffs, logs, crash reports, manifests and identity-rewrite recovery data |
-| `.docs/releases/` | Historical release descriptions |
+| `docs/README.md` | Project documentation index |
+| `docs/evidence/` | Preserved diffs, logs, crash reports, manifests and identity-rewrite recovery data |
+| `docs/releases/` | Historical release descriptions |
 | `.github/workflows/build.yml` | Published-release/manual build workflow |
 | `.github/scripts/package-release.py` | Four-payload ZIP validation and release naming |
 | `.github/scripts/verify-project.py` | Read-only documentation, evidence and optional local archive checks |

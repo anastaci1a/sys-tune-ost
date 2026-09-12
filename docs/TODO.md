@@ -70,7 +70,7 @@ Implementation baseline: qs11 (original `79f2e94`, rewritten `ffbb9d4`), API 18.
 
 ## Ongoing engineering follow-ups (suggestions, not additional user feature promises)
 
-- [x] **ENG-01 — Consolidate and correct project documentation.** Root README now indexes `.docs`; usage, API 18, HOME heuristic/submenu, Loading delays, Settings priority and serial build guidance are documented there. Agent procedures are in root `AGENTS.md`. No runtime change or console validation is implied.
+- [x] **ENG-01 — Consolidate and correct project documentation.** Root README now indexes `docs`; usage, API 18, HOME heuristic/submenu, Loading delays, Settings priority and serial build guidance are documented there. Agent procedures are in root `AGENTS.md`. No runtime change or console validation is implied.
 - [x] **ENG-02 — Pin a working devkitPro image digest and record compiler/libnx versions.** Completed in the release workflow; the 2026-09-12 manual run passed with devkitA64 GCC 15.2.0 and libnx 4.12.0-1. See `RELEASE_AUTOMATION.md` for the image digest and full validation record. This does not reproduce the historical release binaries or close hardware checks.
 - [ ] **ENG-03 — Investigate the observed zero-byte parallel-build object only if relevant to restoring parallel builds.** Preserve serial final builds meanwhile. Check top-level `nxExt`/module ordering and actual failed logs; do not claim a proved cause from a hypothesis.
 - [ ] **ENG-04 — Investigate an authoritative Quick Settings visibility signal if new evidence appears.** Existing scene/process/focus approaches failed on this console. Keep the configurable/disable-able heuristic until a better signal is validated.

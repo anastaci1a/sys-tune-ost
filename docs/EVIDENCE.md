@@ -23,7 +23,7 @@ the rewrite map where needed.
 | `evidence/verify-author-rewrite.ps1.txt` | Retired rewrite-time checker, preserved as text; includes ref deletion and obsolete absolute paths |
 
 Historical paths in these original records intentionally retain `context/`,
-`project/`, and `releases/`. Their current equivalents are `.docs/evidence/`
+`project/`, and `releases/`. Their current equivalents are `docs/evidence/`
 for evidence, the repository root for source, and `_dist/` for archives.
 These snapshots are not instructions to restore an old branch or folder layout.
 The active read-only check is `.github/scripts/verify-project.py`.

@@ -163,3 +163,14 @@ remain historical rather than falsely describing the modified working tree.
 Agent procedures from the outer instructions and `DEVELOPMENT.md` now live in
 root `AGENTS.md`; project facts live here. No soundtrack implementation changes
 or new console results accompany this reorganization.
+
+The completed move verified all 453 repository files, including Git data,
+against SHA-256 snapshots taken immediately before moving them. The active
+read-only verifier passed for all 20 preserved evidence files and twelve
+original ZIPs, including payload hashes, CRCs, embedded overlay identities and
+ExeFS structure. Superproject and libtesla object integrity checks passed;
+the dependency HEAD still matches the tracked gitlink at `f766e9b` and its
+worktree is clean. The host's `git submodule` shell helper could not run because
+its shell utilities were unavailable, so those dependency checks used direct
+Git commands instead. Runtime source, Makefiles and the release workflow are
+unchanged. No new toolchain build or console tests were run.
